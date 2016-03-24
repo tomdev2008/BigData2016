@@ -30,11 +30,6 @@ public class Crawler {
             words.add(matcher.group().toLowerCase());
         }
         return words;
-//        return Arrays.asList(parsedText.split("\n"))
-//                .stream()
-//                .flatMap(line -> Stream.of(line.split(" ")))
-//                .filter(StringUtils::isNotBlank)
-//                .collect(Collectors.toList());
     }
 
     private String parse(String htmlBody) throws ParseException {
