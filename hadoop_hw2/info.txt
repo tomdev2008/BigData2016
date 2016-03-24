@@ -1,0 +1,1 @@
+yarn jar /root/BDCC/BigData2016/hadoop_hw2/target/hadoop-hw2-1.0-SNAPSHOT.jar com.epam.hadoop.hw2.Client --jar /root/BDCC/BigData2016/hadoop_hw2/target/hadoop-hw2-1.0-SNAPSHOT.jar --shell_command pwd --num_containers 1
