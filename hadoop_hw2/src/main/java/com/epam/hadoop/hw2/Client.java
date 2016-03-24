@@ -14,18 +14,15 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -35,29 +32,12 @@ import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.KillApplicationRequest;
-import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.ApplicationReport;
-import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
-import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
-import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
-import org.apache.hadoop.yarn.api.records.LocalResource;
-import org.apache.hadoop.yarn.api.records.LocalResourceType;
-import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
-import org.apache.hadoop.yarn.api.records.NodeReport;
-import org.apache.hadoop.yarn.api.records.NodeState;
-import org.apache.hadoop.yarn.api.records.Priority;
-import org.apache.hadoop.yarn.api.records.QueueACL;
-import org.apache.hadoop.yarn.api.records.QueueInfo;
-import org.apache.hadoop.yarn.api.records.QueueUserACLInfo;
-import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.hadoop.yarn.api.records.YarnApplicationState;
-import org.apache.hadoop.yarn.api.records.YarnClusterMetrics;
+import org.apache.hadoop.yarn.api.records.*;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.ConverterUtils;
-import org.apache.hadoop.yarn.util.Records;
 
 /**
  * Client for Distributed Shell application submission to YARN.
@@ -194,7 +174,7 @@ public class Client {
      */
     public Client(Configuration conf) throws Exception  {
         this(
-                "org.apache.hadoop.yarn.applications.distributedshell.ApplicationMaster",
+                "com.epam.hadoop.hw2.ApplicationMaster",
                 conf);
     }
 
@@ -447,13 +427,13 @@ public class Client {
         // Copy the application master jar to the filesystem
         // Create a local resource to point to the destination jar path
         FileSystem fs = FileSystem.get(conf);
-        addToLocalResources(fs, appMasterJar, appMasterJarPath, appId.toString(),
-                localResources, null);
+        FileInfo jarFileInfo = Utils.copyAndAddToLocalResources(fs, appMasterJar, appMasterJarPath, appId.toString(),
+                localResources, null, appName);
 
         // Set the log4j properties if needed
         if (!log4jPropFile.isEmpty()) {
-            addToLocalResources(fs, log4jPropFile, log4jPath, appId.toString(),
-                    localResources, null);
+            Utils.copyAndAddToLocalResources(fs, log4jPropFile, log4jPath, appId.toString(),
+                    localResources, null, appName);
         }
 
         // The shell script has to be made available on the final container(s)
@@ -479,13 +459,13 @@ public class Client {
         }
 
         if (!shellCommand.isEmpty()) {
-            addToLocalResources(fs, null, shellCommandPath, appId.toString(),
-                    localResources, shellCommand);
+            Utils.copyAndAddToLocalResources(fs, null, shellCommandPath, appId.toString(),
+                    localResources, shellCommand, appName);
         }
 
         if (shellArgs.length > 0) {
-            addToLocalResources(fs, null, shellArgsPath, appId.toString(),
-                    localResources, StringUtils.join(shellArgs, " "));
+            Utils.copyAndAddToLocalResources(fs, null, shellArgsPath, appId.toString(),
+                    localResources, StringUtils.join(shellArgs, " "), appName);
         }
 
         // Set the necessary security tokens as needed
@@ -501,6 +481,9 @@ public class Client {
         env.put(DSConstants.DISTRIBUTEDSHELLSCRIPTLOCATION, hdfsShellScriptLocation);
         env.put(DSConstants.DISTRIBUTEDSHELLSCRIPTTIMESTAMP, Long.toString(hdfsShellScriptTimestamp));
         env.put(DSConstants.DISTRIBUTEDSHELLSCRIPTLEN, Long.toString(hdfsShellScriptLen));
+        env.put(DSConstants.DSJARLOCATION, jarFileInfo.getPath().toString());
+        env.put(DSConstants.DSJARLOCATIONLEN, jarFileInfo.getLength().toString());
+        env.put(DSConstants.DSJARLOCATIONTIME, jarFileInfo.getModificationTime().toString());
 
         // Add AppMaster.jar location to classpath
         // At some point we should not be required to add
@@ -527,6 +510,8 @@ public class Client {
 
         env.put("CLASSPATH", classPathEnv.toString());
 
+        LOG.info("env = " + env);
+
         // Set the necessary command to execute the application master
         Vector<CharSequence> vargs = new Vector<CharSequence>(30);
 
@@ -537,6 +522,7 @@ public class Client {
         vargs.add("-Xmx" + amMemory + "m");
         // Set class name
         vargs.add(appMasterMainClass);
+//        vargs.add("com.epam.hadoop.hw2.container.Container");
         // Set params for Application Master
         vargs.add("--container_memory " + String.valueOf(containerMemory));
         vargs.add("--container_vcores " + String.valueOf(containerVirtualCores));
@@ -712,32 +698,6 @@ public class Client {
         yarnClient.killApplication(appId);
     }
 
-    private void addToLocalResources(FileSystem fs, String fileSrcPath,
-                                     String fileDstPath, String appId, Map<String, LocalResource> localResources,
-                                     String resources) throws IOException {
-        String suffix =
-                appName + "/" + appId + "/" + fileDstPath;
-        Path dst =
-                new Path(fs.getHomeDirectory(), suffix);
-        if (fileSrcPath == null) {
-            FSDataOutputStream ostream = null;
-            try {
-                ostream = FileSystem
-                        .create(fs, dst, new FsPermission((short) 0710));
-                ostream.writeUTF(resources);
-            } finally {
-                IOUtils.closeQuietly(ostream);
-            }
-        } else {
-            fs.copyFromLocalFile(new Path(fileSrcPath), dst);
-        }
-        FileStatus scFileStatus = fs.getFileStatus(dst);
-        LocalResource scRsrc =
-                LocalResource.newInstance(
-                        ConverterUtils.getYarnUrlFromURI(dst.toUri()),
-                        LocalResourceType.FILE, LocalResourceVisibility.APPLICATION,
-                        scFileStatus.getLen(), scFileStatus.getModificationTime());
-        localResources.put(fileDstPath, scRsrc);
-    }
+
 }
 

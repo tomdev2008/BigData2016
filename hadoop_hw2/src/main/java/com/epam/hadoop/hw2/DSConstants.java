@@ -27,5 +27,9 @@ public class DSConstants {
      * Used to validate the local resource.
      */
     public static final String DISTRIBUTEDSHELLSCRIPTLEN = "DISTRIBUTEDSHELLSCRIPTLEN";
+
+    public static final String DSJARLOCATION = "DSJARLOCATION";
+    public static final String DSJARLOCATIONLEN = "DSJARLOCATIONLEN";
+    public static final String DSJARLOCATIONTIME = "DSJARLOCATIONTIME";
 }
 

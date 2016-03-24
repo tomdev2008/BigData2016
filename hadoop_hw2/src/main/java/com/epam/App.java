@@ -26,6 +26,7 @@ public class App {
                                 "qwe ggg" +
                                 "<script>(function() {console.log('sdf')})()</script>" +
                                 "<br/>" +
+                                "<a title=\"sdsdfdfdfdfd\"></a>" +
                                 "<span>sss</span>" +
                         "</body>" +
                         "</html>");

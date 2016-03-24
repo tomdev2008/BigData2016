@@ -1,0 +1,9 @@
+<html>
+   <body>
+       first    second ($123)
+       <script>(function() {console.log('sdf')})()</script>
+       <br/>
+       <span>third</span>
+       123
+   </body>
+</html>

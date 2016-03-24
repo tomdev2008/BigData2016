@@ -252,6 +252,10 @@ public class ApplicationMaster {
     private final String linux_bash_command = "bash";
     private final String windows_command = "cmd /c";
 
+    private String jarPath;
+    private long jarPathLen;
+    private long jarPathTime;
+
     /**
      * @param args Command line args
      */
@@ -457,6 +461,10 @@ public class ApplicationMaster {
                         "Illegal values in env for shell script path");
             }
         }
+
+        jarPath = envs.get(DSConstants.DSJARLOCATION);
+        jarPathLen = Long.parseLong(envs.get(DSConstants.DSJARLOCATIONLEN));
+        jarPathTime = Long.parseLong(envs.get(DSConstants.DSJARLOCATIONTIME));
 
         containerMemory = Integer.parseInt(cliParser.getOptionValue(
                 "container_memory", "10"));
@@ -883,8 +891,67 @@ public class ApplicationMaster {
          * start request to the CM.
          */
         public void run() {
-            LOG.info("Setting up container launch container for containerid="
+            LOG.info("Setting up container launch container for containerid 2 ="
                     + container.getId());
+
+
+
+            // Set the env variables to be setup in the env where the application master will be run
+            LOG.info("Set the environment for the application master");
+            Map<String, String> env = new HashMap<String, String>();
+
+            // put location of shell script into env
+            // using the env info, the application master will create the correct local resource for the
+            // eventual containers that will be launched to execute the shell scripts
+//            env.put(DSConstants.DISTRIBUTEDSHELLSCRIPTLOCATION, hdfsShellScriptLocation);
+//            env.put(DSConstants.DISTRIBUTEDSHELLSCRIPTTIMESTAMP, Long.toString(hdfsShellScriptTimestamp));
+//            env.put(DSConstants.DISTRIBUTEDSHELLSCRIPTLEN, Long.toString(hdfsShellScriptLen));
+
+            // Add AppMaster.jar location to classpath
+            // At some point we should not be required to add
+            // the hadoop specific classpaths to the env.
+            // It should be provided out of the box.
+            // For now setting all required classpaths including
+            // the classpath to "." for the application jar
+            StringBuilder classPathEnv = new StringBuilder(Environment.CLASSPATH.$$())
+                    .append(ApplicationConstants.CLASS_PATH_SEPARATOR)
+                    .append("./*");
+
+
+
+//            classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR)
+//                    .append("/hadoop/yarn/local/usercache/root/appcache/application_1458739562982_0009/container_e17_1458739562982_0009_01_000001/AppMaster.jar");
+
+
+
+            for (String c : conf.getStrings(
+                    YarnConfiguration.YARN_APPLICATION_CLASSPATH,
+                    YarnConfiguration.DEFAULT_YARN_CROSS_PLATFORM_APPLICATION_CLASSPATH)) {
+                classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR);
+                classPathEnv.append(c.trim());
+            }
+            classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR).append(
+                    "./log4j.properties");
+
+            // add the runtime classpath needed for tests to work
+            if (conf.getBoolean(YarnConfiguration.IS_MINI_YARN_CLUSTER, false)) {
+                classPathEnv.append(':');
+                classPathEnv.append(System.getProperty("java.class.path"));
+            }
+
+//            classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR);
+//            classPathEnv.append("/root/BDCC/BigData2016/hadoop_hw2/target/hadoop-hw2-1.0-SNAPSHOT.jar");
+
+            env.put("CLASSPATH", classPathEnv.toString());
+
+
+            System.out.println("container env = " + env);
+
+
+
+
+
+
 
             // Set the local resources
             Map<String, LocalResource> localResources = new HashMap<String, LocalResource>();
@@ -938,20 +1005,23 @@ public class ApplicationMaster {
                 shellCommand = Shell.WINDOWS ? windows_command : linux_bash_command;
             }
 
+            try {
+                Utils.addToLocalResources(localResources, new Path(jarPath), "AppMaster.jar", jarPathLen, jarPathTime);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
             // Set the necessary command to execute on the allocated container
             Vector<CharSequence> vargs = new Vector<CharSequence>(5);
 
-            // Set executable command
-            vargs.add(shellCommand);
-            // Set shell script path
-            if (!scriptPath.isEmpty()) {
-                vargs.add(Shell.WINDOWS ? ExecBatScripStringtPath
-                        : ExecShellStringPath);
-            }
+            vargs.add(Environment.JAVA_HOME.$$() + "/bin/java");
+            vargs.add("com.epam.hadoop.hw2.container.Container");
 
-            // Set args for the shell command if any
-            vargs.add(shellArgs);
-            // Add log redirect params
+
+//
+//            vargs.add("java -jar AppMaster.jar");
+//            vargs.add("ls -lh");
+
             vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
             vargs.add("2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
 
@@ -960,6 +1030,8 @@ public class ApplicationMaster {
             for (CharSequence str : vargs) {
                 command.append(str).append(" ");
             }
+
+            LOG.info("command = " + command);
 
             List<String> commands = new ArrayList<String>();
             commands.add(command.toString());
@@ -974,9 +1046,15 @@ public class ApplicationMaster {
             // otherwise also useful in cases, for e.g., when one is running a
             // "hadoop dfs" command inside the distributed shell.
             ContainerLaunchContext ctx = ContainerLaunchContext.newInstance(
-                    localResources, shellEnv, commands, null, allTokens.duplicate(), null);
+                    localResources, env, commands, null, allTokens.duplicate(), null);
             containerListener.addContainer(container.getId(), container);
             nmClientAsync.startContainerAsync(container, ctx);
+
+//            try {
+//                Thread.sleep(111111111111111111L);
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
         }
     }
 
