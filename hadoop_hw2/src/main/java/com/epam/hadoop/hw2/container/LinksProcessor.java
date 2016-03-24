@@ -29,9 +29,11 @@ public class LinksProcessor {
 
     private OutputLinkLine processLine(InputLinkLine linkLine) {
         try {
+            System.out.println("processing line " + linkLine);
             String htmlBody = loader.load(linkLine.getLink());
             List<String> words = crawler.extractWords(htmlBody);
             List<String> topWords = counter.getTopWords(words, TOP_N);
+            System.out.println("top words " + topWords);
             return new OutputLinkLine(linkLine, topWords);
         } catch (ParseException e) {
             e.printStackTrace(); //TODO

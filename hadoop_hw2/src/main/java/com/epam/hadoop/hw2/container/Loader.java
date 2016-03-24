@@ -19,6 +19,7 @@ public class Loader {
 
     public String load(String link) {
         try {
+            System.out.println("loading link " + link);
             HttpClient client = new HttpClient();
             GetMethod method = new GetMethod(link);
             int result = client.executeMethod(method);
