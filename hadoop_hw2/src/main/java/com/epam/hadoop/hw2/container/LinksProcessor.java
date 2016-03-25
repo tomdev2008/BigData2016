@@ -20,7 +20,7 @@ public class LinksProcessor {
 
     public void process(String srcFilePath, String destinationFilePath) throws IOException { //TODO handle IO
         List<OutputLinkLine> outputLinkLines = repository.readLinks(srcFilePath)
-                .stream()
+                .parallelStream()
                 .map(this::processLine)
                 .collect(Collectors.toList());
 
