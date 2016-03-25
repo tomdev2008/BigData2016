@@ -6,15 +6,11 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.PrivilegedExceptionAction;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Vector;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import com.epam.hadoop.hw2.DSConstants;
 import com.epam.hadoop.hw2.ResourcesUtils;
@@ -165,6 +161,8 @@ public class ApplicationMaster {
 
     private String input = "";
     private String output = "";
+
+    private static final String appMasterJarPath = "AppMaster.jar";
 
     /**
      * @param args Command line args
@@ -317,66 +315,43 @@ public class ApplicationMaster {
         nmClientAsync.init(conf);
         nmClientAsync.start();
 
-        // Setup local RPC Server to accept status requests directly from clients
-        // TODO need to setup a protocol for client to be able to communicate to
-        // the RPC server
-        // TODO use the rpc port info to register with the RM for the client to
-        // send requests to this app master
-
-        // Register self with ResourceManager
-        // This will start heartbeating to the RM
         appMasterHostname = NetUtils.getHostname();
         RegisterApplicationMasterResponse response = amRMClient
-                .registerApplicationMaster(appMasterHostname, appMasterRpcPort,
-                        appMasterTrackingUrl);
-        // Dump out information about cluster capability as seen by the
-        // resource manager
-        int maxMem = response.getMaximumResourceCapability().getMemory();
-        LOG.info("Max mem capabililty of resources in this cluster " + maxMem);
+                .registerApplicationMaster(appMasterHostname, appMasterRpcPort, appMasterTrackingUrl);
 
-        int maxVCores = response.getMaximumResourceCapability().getVirtualCores();
-        LOG.info("Max vcores capabililty of resources in this cluster " + maxVCores);
+        modifyRequiredResources(response);
 
-        // A resource ask cannot exceed the max.
-        if (containerMemory > maxMem) {
-            LOG.info("Container memory specified above max threshold of cluster."
-                    + " Using max value." + ", specified=" + containerMemory + ", max="
-                    + maxMem);
-            containerMemory = maxMem;
-        }
-
-        if (containerVirtualCores > maxVCores) {
-            LOG.info("Container virtual cores specified above max threshold of cluster."
-                    + " Using max value." + ", specified=" + containerVirtualCores + ", max="
-                    + maxVCores);
-            containerVirtualCores = maxVCores;
-        }
-
-        List<Container> previousAMRunningContainers =
-                response.getContainersFromPreviousAttempts();
-        LOG.info(appAttemptID + " received " + previousAMRunningContainers.size()
-                + " previous attempts' running containers on AM registration.");
+        List<Container> previousAMRunningContainers = response.getContainersFromPreviousAttempts();
+        LOG.info(appAttemptID + " received " + previousAMRunningContainers.size() + " previous attempts' running containers on AM registration.");
         numAllocatedContainers.addAndGet(previousAMRunningContainers.size());
 
-        int numTotalContainersToRequest =
-                numTotalContainers - previousAMRunningContainers.size();
-        // Setup ask for containers from RM
-        // Send request for containers to RM
-        // Until we get our fully allocated quota, we keep on polling RM for
-        // containers
-        // Keep looping until all the containers are launched and shell script
-        // executed on them ( regardless of success/failure).
+        int numTotalContainersToRequest = numTotalContainers - previousAMRunningContainers.size();
+
         for (int i = 0; i < numTotalContainersToRequest; ++i) {
             ContainerRequest containerAsk = setupContainerAskForRM();
             amRMClient.addContainerRequest(containerAsk);
         }
         numRequestedContainers.set(numTotalContainers);
         try {
-            publishApplicationAttemptEvent(timelineClient, appAttemptID.toString(),
-                    DSEvent.DS_APP_ATTEMPT_END);
+            publishApplicationAttemptEvent(timelineClient, appAttemptID.toString(), DSEvent.DS_APP_ATTEMPT_END);
         } catch (Exception e) {
-            LOG.error("App Attempt start event coud not be pulished for "
-                    + appAttemptID.toString(), e);
+            LOG.error("App Attempt start event coud not be pulished for " + appAttemptID.toString(), e);
+        }
+    }
+
+    private void modifyRequiredResources(RegisterApplicationMasterResponse response) {
+        int maxMem = response.getMaximumResourceCapability().getMemory();
+        LOG.info("Max mem capabililty of resources in this cluster " + maxMem);
+        if (containerMemory > maxMem) {
+            LOG.info("Container memory specified above max threshold of cluster. Using max value." + ", specified=" + containerMemory + ", max=" + maxMem);
+            containerMemory = maxMem;
+        }
+
+        int maxVCores = response.getMaximumResourceCapability().getVirtualCores();
+        LOG.info("Max vcores capabililty of resources in this cluster " + maxVCores);
+        if (containerVirtualCores > maxVCores) {
+            LOG.info("Container virtual cores specified above max threshold of cluster. Using max value." + ", specified=" + containerVirtualCores + ", max=" + maxVCores);
+            containerVirtualCores = maxVCores;
         }
     }
 
@@ -545,8 +520,7 @@ public class ApplicationMaster {
         @Override
         public float getProgress() {
             // set progress to deliver to RM on next heartbeat
-            float progress = (float) numCompletedContainers.get()
-                    / numTotalContainers;
+            float progress = (float) numCompletedContainers.get() / numTotalContainers;
             return progress;
         }
 
@@ -657,38 +631,53 @@ public class ApplicationMaster {
          * start request to the CM.
          */
         public void run() {
-            LOG.info("Setting up container launch container for containerid 2 ="
-                    + container.getId());
+            LOG.info("Setting up container launch container for containerid=" + container.getId());
 
-
-
-            // Set the env variables to be setup in the env where the application master will be run
             LOG.info("Set the environment for the application master");
-            Map<String, String> env = new HashMap<String, String>();
+            Map<String, String> env = new HashMap<>();
 
-            // put location of shell script into env
-            // using the env info, the application master will create the correct local resource for the
-            // eventual containers that will be launched to execute the shell scripts
-//            env.put(DSConstants.DISTRIBUTEDSHELLSCRIPTLOCATION, hdfsShellScriptLocation);
-//            env.put(DSConstants.DISTRIBUTEDSHELLSCRIPTTIMESTAMP, Long.toString(hdfsShellScriptTimestamp));
-//            env.put(DSConstants.DISTRIBUTEDSHELLSCRIPTLEN, Long.toString(hdfsShellScriptLen));
+            String classPathEnv = getClasspath();
 
-            // Add AppMaster.jar location to classpath
-            // At some point we should not be required to add
-            // the hadoop specific classpaths to the env.
-            // It should be provided out of the box.
-            // For now setting all required classpaths including
-            // the classpath to "." for the application jar
+            env.put("CLASSPATH", classPathEnv);
+
+            // Set the local resources
+            Map<String, LocalResource> localResources = new HashMap<String, LocalResource>();
+
+            try {
+                ResourcesUtils.addToLocalResources(localResources, new Path(jarPath), appMasterJarPath, jarPathLen, jarPathTime);
+            } catch (IOException e) {
+                LOG.error("Could not add to local resources file " + jarPath, e);
+                throw new RuntimeException(e);
+            }
+
+            // Set the necessary command to execute on the allocated container
+            Vector<CharSequence> vargs = new Vector<CharSequence>(5);
+
+            String command = Arrays.asList(
+                    Environment.JAVA_HOME.$$() + "/bin/java",
+                    com.epam.hadoop.hw2.container.Container.class.getName(),
+                    input,
+                    output,
+                    "1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout",
+                    "2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr")
+                    .stream()
+                    .collect(Collectors.joining(" "));
+
+            LOG.info("Container command = " + command);
+
+            List<String> commands = new ArrayList<String>();
+            commands.add(command);
+
+            ContainerLaunchContext ctx = ContainerLaunchContext.newInstance(
+                    localResources, env, commands, null, null, null);
+            containerListener.addContainer(container.getId(), container);
+            nmClientAsync.startContainerAsync(container, ctx);
+        }
+
+        private String getClasspath() {
             StringBuilder classPathEnv = new StringBuilder(Environment.CLASSPATH.$$())
                     .append(ApplicationConstants.CLASS_PATH_SEPARATOR)
                     .append("./*");
-
-
-
-//            classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR)
-//                    .append("/hadoop/yarn/local/usercache/root/appcache/application_1458739562982_0009/container_e17_1458739562982_0009_01_000001/AppMaster.jar");
-
-
 
             for (String c : conf.getStrings(
                     YarnConfiguration.YARN_APPLICATION_CLASSPATH,
@@ -696,100 +685,10 @@ public class ApplicationMaster {
                 classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR);
                 classPathEnv.append(c.trim());
             }
-            classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR).append(
-                    "./log4j.properties");
-
-            // add the runtime classpath needed for tests to work
-            if (conf.getBoolean(YarnConfiguration.IS_MINI_YARN_CLUSTER, false)) {
-                classPathEnv.append(':');
-                classPathEnv.append(System.getProperty("java.class.path"));
-            }
-
-//            classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR);
-//            classPathEnv.append("/root/BDCC/BigData2016/hadoop_hw2/target/hadoop-hw2-1.0-SNAPSHOT.jar");
-
-            env.put("CLASSPATH", classPathEnv.toString());
-
-
-            System.out.println("container env = " + env);
-
-
-
-
-
-
-
-            // Set the local resources
-            Map<String, LocalResource> localResources = new HashMap<String, LocalResource>();
-
-            try {
-                ResourcesUtils.addToLocalResources(localResources, new Path(jarPath), "AppMaster.jar", jarPathLen, jarPathTime);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-            // Set the necessary command to execute on the allocated container
-            Vector<CharSequence> vargs = new Vector<CharSequence>(5);
-
-            vargs.add(Environment.JAVA_HOME.$$() + "/bin/java");
-            vargs.add("com.epam.hadoop.hw2.container.Container");
-            vargs.add(input);
-            vargs.add(output);
-
-
-//
-//            vargs.add("java -jar AppMaster.jar");
-//            vargs.add("ls -lh");
-
-            vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
-            vargs.add("2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
-
-            // Get final commmand
-            StringBuilder command = new StringBuilder();
-            for (CharSequence str : vargs) {
-                command.append(str).append(" ");
-            }
-
-            LOG.info("command = " + command);
-
-            List<String> commands = new ArrayList<String>();
-            commands.add(command.toString());
-
-            // Set up ContainerLaunchContext, setting local resource, environment,
-            // command and token for constructor.
-
-            // Note for tokens: Set up tokens for the container too. Today, for normal
-            // shell commands, the container in distribute-shell doesn't need any
-            // tokens. We are populating them mainly for NodeManagers to be able to
-            // download anyfiles in the distributed file-system. The tokens are
-            // otherwise also useful in cases, for e.g., when one is running a
-            // "hadoop dfs" command inside the distributed shell.
-            ContainerLaunchContext ctx = ContainerLaunchContext.newInstance(
-                    localResources, env, commands, null, null, null);
-            containerListener.addContainer(container.getId(), container);
-            nmClientAsync.startContainerAsync(container, ctx);
-
-//            try {
-//                Thread.sleep(111111111111111111L);
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            }
+            return classPathEnv.toString();
         }
     }
 
-    private void renameScriptFile(final Path renamedScriptPath)
-            throws IOException, InterruptedException {
-        appSubmitterUgi.doAs(new PrivilegedExceptionAction<Void>() {
-            @Override
-            public Void run() throws IOException {
-                FileSystem fs = renamedScriptPath.getFileSystem(conf);
-                fs.rename(new Path(scriptPath), renamedScriptPath);
-                return null;
-            }
-        });
-        LOG.info("User " + appSubmitterUgi.getUserName()
-                + " added suffix(.sh/.bat) to script file as " + renamedScriptPath);
-    }
 
     /**
      * Setup the request that will be sent to the RM for the container ask.
