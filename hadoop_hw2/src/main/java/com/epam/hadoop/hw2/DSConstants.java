@@ -28,8 +28,8 @@ public class DSConstants {
      */
     public static final String DISTRIBUTEDSHELLSCRIPTLEN = "DISTRIBUTEDSHELLSCRIPTLEN";
 
-    public static final String DSJARLOCATION = "DSJARLOCATION";
-    public static final String DSJARLOCATIONLEN = "DSJARLOCATIONLEN";
-    public static final String DSJARLOCATIONTIME = "DSJARLOCATIONTIME";
+    public static final String JARLOCATION = "JARLOCATION";
+    public static final String JARLOCATIONLEN = "JARLOCATIONLEN";
+    public static final String JARLOCATIONTIME = "JARLOCATIONTIME";
 }
 

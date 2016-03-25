@@ -19,7 +19,6 @@ public class Container {
         LOG.info("Started container");
 
         LinksProcessor linksProcessor = new LinkProcessorFactory().create();
-//        linksProcessor.process(args[0], args[1]);
-        linksProcessor.process("/tmp/hadoop2hw/user.profile.tags.us.txt", "/tmp/hadoop2hw/result_3.txt");
+        linksProcessor.process(args[0], args[1]);
     }
 }
