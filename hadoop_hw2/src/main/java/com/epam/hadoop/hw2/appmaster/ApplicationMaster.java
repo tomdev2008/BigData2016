@@ -129,6 +129,8 @@ public class ApplicationMaster {
 
     private static final String appMasterJarPath = "AppMaster.jar";
 
+    private FileSystem fileSystem;
+
     /**
      * @param args Command line args
      */
@@ -157,8 +159,9 @@ public class ApplicationMaster {
         }
     }
 
-    public ApplicationMaster() {
+    public ApplicationMaster() throws IOException {
         conf = new YarnConfiguration();
+        fileSystem = FileSystem.get(conf);
     }
 
     /**
@@ -280,24 +283,25 @@ public class ApplicationMaster {
 
         modifyRequiredResources(response);
 
-        Configuration conf = new Configuration ();
-        URI hdfsUrl = new URI("hdfs://sandbox/");
-        FileSystem fileSystem = FileSystem.get(hdfsUrl, conf);
+        askContainers();
 
-        Path path = new Path("/tmp/hadoop2hw/user.profile.tags.us.test3.txt");
-        FileStatus fileStatus = fileSystem.getFileStatus(path);
-        BlockLocation[] fileBlockLocations = fileSystem.getFileBlockLocations(fileStatus, 0L, fileStatus.getLen());
-
-
-        for (int i = 0; i < 3; ++i) {
-            ContainerRequest containerAsk = setupContainerAskForRM();
-            amRMClient.addContainerRequest(containerAsk);
-            LOG.info("Ask container " + containerAsk);
-        }
         try {
             publishApplicationAttemptEvent(timelineClient, appAttemptID.toString(), DSEvent.DS_APP_ATTEMPT_END);
         } catch (Exception e) {
             LOG.error("App Attempt start event coud not be pulished for " + appAttemptID.toString(), e);
+        }
+    }
+
+    private void askContainers() throws IOException {
+        Path path = new Path(input);
+        FileStatus fileStatus = fileSystem.getFileStatus(path);
+        BlockLocation[] fileBlockLocations = fileSystem.getFileBlockLocations(fileStatus, 0L, fileStatus.getLen());
+        LOG.info("Found " + fileBlockLocations.length + " blocks of file " + input);
+        for (BlockLocation blockLocation: fileBlockLocations) {
+            LOG.info("Asking container for block (" + blockLocation.getOffset() + "," + blockLocation.getLength() + ") of file " + input);
+            ContainerRequest containerAsk = setupContainerAskForRM(blockLocation.getHosts());
+            amRMClient.addContainerRequest(containerAsk);
+            LOG.info("Asked container for block (" + blockLocation.getOffset() + "," + blockLocation.getLength() + ") of file " + input);
         }
     }
 
@@ -377,71 +381,20 @@ public class ApplicationMaster {
         @SuppressWarnings("unchecked")
         @Override
         public void onContainersCompleted(List<ContainerStatus> completedContainers) {
-            LOG.info("Got response from RM for container ask, completedCnt="
-                    + completedContainers.size());
+            LOG.info("Got response from RM for container statuses. Statuses number=" + completedContainers.size());
             for (ContainerStatus containerStatus : completedContainers) {
                 LOG.info(appAttemptID + " got container status for containerID="
                         + containerStatus.getContainerId() + ", state="
                         + containerStatus.getState() + ", exitStatus="
                         + containerStatus.getExitStatus() + ", diagnostics="
                         + containerStatus.getDiagnostics());
-
-                // non complete containers should not be here
-                assert (containerStatus.getState() == ContainerState.COMPLETE);
-
-                // increment counters for completed/failed containers
-                int exitStatus = containerStatus.getExitStatus();
-                if (0 != exitStatus) {
-                    // container failed
-                    if (ContainerExitStatus.ABORTED != exitStatus) {
-                        // shell script failed
-                        // counts as completed
-                        numCompletedContainers.incrementAndGet();
-                        numFailedContainers.incrementAndGet();
-                    } else {
-                        // container was killed by framework, possibly preempted
-                        // we should re-try as the container was lost for some reason
-                        numAllocatedContainers.decrementAndGet();
-                        numRequestedContainers.decrementAndGet();
-                        // we do not need to release the container as it would be done
-                        // by the RM
-                    }
-                } else {
-                    // nothing to do
-                    // container completed successfully
-                    numCompletedContainers.incrementAndGet();
-                    LOG.info("Container completed successfully." + ", containerId="
-                            + containerStatus.getContainerId());
-                }
-                try {
-                    publishContainerEndEvent(timelineClient, containerStatus);
-                } catch (Exception e) {
-                    LOG.error("Container start event could not be pulished for "
-                            + containerStatus.getContainerId().toString(), e);
-                }
-            }
-
-            // ask for more containers if any failed
-            int askCount = numTotalContainers - numRequestedContainers.get();
-            numRequestedContainers.addAndGet(askCount);
-
-            if (askCount > 0) {
-                for (int i = 0; i < askCount; ++i) {
-                    ContainerRequest containerAsk = setupContainerAskForRM();
-                    amRMClient.addContainerRequest(containerAsk);
-                }
-            }
-
-            if (numCompletedContainers.get() == numTotalContainers) {
-                done = true;
             }
         }
 
         @Override
         public void onContainersAllocated(List<Container> allocatedContainers) {
-            LOG.info("Got response from RM for container ask, allocatedCnt="
-                    + allocatedContainers.size());
-            numAllocatedContainers.addAndGet(allocatedContainers.size());
+            LOG.info("Got response from RM for container allocated. Allocated containers number=" + allocatedContainers.size());
+
             for (Container allocatedContainer : allocatedContainers) {
                 LOG.info("Launching shell command on a new container."
                         + ", containerId=" + allocatedContainer.getId()
@@ -452,19 +405,65 @@ public class ApplicationMaster {
                         + allocatedContainer.getResource().getMemory()
                         + ", containerResourceVirtualCores"
                         + allocatedContainer.getResource().getVirtualCores());
-                // + ", containerToken"
-                // +allocatedContainer.getContainerToken().getIdentifier().toString());
 
-                LaunchContainerRunnable runnableLaunchContainer =
-                        new LaunchContainerRunnable(allocatedContainer, containerListener);
-                Thread launchThread = new Thread(runnableLaunchContainer);
-
-                // launch and start the container on a separate thread to keep
-                // the main thread unblocked
-                // as all containers may not be allocated at one go.
-                launchThreads.add(launchThread);
-                launchThread.start();
+                allocateContainer(allocatedContainer);
             }
+        }
+
+        private void allocateContainer(Container allocatedContainer) {
+            LOG.info("Set the environment for the application master");
+            Map<String, String> env = new HashMap<>();
+
+            String classPathEnv = getClasspath();
+
+            env.put("CLASSPATH", classPathEnv);
+
+            // Set the local resources
+            Map<String, LocalResource> localResources = new HashMap<String, LocalResource>();
+
+            try {
+                ResourcesUtils.addToLocalResources(localResources, new Path(jarPath), appMasterJarPath, jarPathLen, jarPathTime);
+            } catch (IOException e) {
+                LOG.error("Could not add to local resources file " + jarPath, e);
+                throw new RuntimeException(e);
+            }
+
+            // Set the necessary command to execute on the allocated container
+            Vector<CharSequence> vargs = new Vector<CharSequence>(5);
+
+            String command = Arrays.asList(
+                    Environment.JAVA_HOME.$$() + "/bin/java",
+                    com.epam.hadoop.hw2.container.Container.class.getName(),
+                    input,
+                    output,
+                    "1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout",
+                    "2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr")
+                    .stream()
+                    .collect(Collectors.joining(" "));
+
+            LOG.info("Container command = " + command);
+
+            List<String> commands = new ArrayList<String>();
+            commands.add(command);
+
+            ContainerLaunchContext ctx = ContainerLaunchContext.newInstance(
+                    localResources, env, commands, null, null, null);
+            containerListener.addContainer(allocatedContainer.getId(), allocatedContainer);
+            nmClientAsync.startContainerAsync(allocatedContainer, ctx);
+        }
+
+        private String getClasspath() {
+            StringBuilder classPathEnv = new StringBuilder(Environment.CLASSPATH.$$())
+                    .append(ApplicationConstants.CLASS_PATH_SEPARATOR)
+                    .append("./*");
+
+            for (String c : conf.getStrings(
+                    YarnConfiguration.YARN_APPLICATION_CLASSPATH,
+                    YarnConfiguration.DEFAULT_YARN_CROSS_PLATFORM_APPLICATION_CLASSPATH)) {
+                classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR);
+                classPathEnv.append(c.trim());
+            }
+            return classPathEnv.toString();
         }
 
         @Override
@@ -561,103 +560,16 @@ public class ApplicationMaster {
     }
 
     /**
-     * Thread to connect to the {@link ContainerManagementProtocol} and launch the container
-     * that will execute the shell command.
-     */
-    private class LaunchContainerRunnable implements Runnable {
-
-        // Allocated container
-        Container container;
-
-        NMCallbackHandler containerListener;
-
-        /**
-         * @param lcontainer Allocated container
-         * @param containerListener Callback handler of the container
-         */
-        public LaunchContainerRunnable(
-                Container lcontainer, NMCallbackHandler containerListener) {
-            this.container = lcontainer;
-            this.containerListener = containerListener;
-        }
-
-        @Override
-        /**
-         * Connects to CM, sets up container launch context
-         * for shell command and eventually dispatches the container
-         * start request to the CM.
-         */
-        public void run() {
-            LOG.info("Setting up container launch container for containerid=" + container.getId());
-
-            LOG.info("Set the environment for the application master");
-            Map<String, String> env = new HashMap<>();
-
-            String classPathEnv = getClasspath();
-
-            env.put("CLASSPATH", classPathEnv);
-
-            // Set the local resources
-            Map<String, LocalResource> localResources = new HashMap<String, LocalResource>();
-
-            try {
-                ResourcesUtils.addToLocalResources(localResources, new Path(jarPath), appMasterJarPath, jarPathLen, jarPathTime);
-            } catch (IOException e) {
-                LOG.error("Could not add to local resources file " + jarPath, e);
-                throw new RuntimeException(e);
-            }
-
-            // Set the necessary command to execute on the allocated container
-            Vector<CharSequence> vargs = new Vector<CharSequence>(5);
-
-            String command = Arrays.asList(
-                    Environment.JAVA_HOME.$$() + "/bin/java",
-                    com.epam.hadoop.hw2.container.Container.class.getName(),
-                    input,
-                    output,
-                    "1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout",
-                    "2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr")
-                    .stream()
-                    .collect(Collectors.joining(" "));
-
-            LOG.info("Container command = " + command);
-
-            List<String> commands = new ArrayList<String>();
-            commands.add(command);
-
-            ContainerLaunchContext ctx = ContainerLaunchContext.newInstance(
-                    localResources, env, commands, null, null, null);
-            containerListener.addContainer(container.getId(), container);
-            nmClientAsync.startContainerAsync(container, ctx);
-        }
-
-        private String getClasspath() {
-            StringBuilder classPathEnv = new StringBuilder(Environment.CLASSPATH.$$())
-                    .append(ApplicationConstants.CLASS_PATH_SEPARATOR)
-                    .append("./*");
-
-            for (String c : conf.getStrings(
-                    YarnConfiguration.YARN_APPLICATION_CLASSPATH,
-                    YarnConfiguration.DEFAULT_YARN_CROSS_PLATFORM_APPLICATION_CLASSPATH)) {
-                classPathEnv.append(ApplicationConstants.CLASS_PATH_SEPARATOR);
-                classPathEnv.append(c.trim());
-            }
-            return classPathEnv.toString();
-        }
-    }
-
-
-    /**
      * Setup the request that will be sent to the RM for the container ask.
      *
      * @return the setup ResourceRequest to be sent to RM
      */
-    private ContainerRequest setupContainerAskForRM() {
+    private ContainerRequest setupContainerAskForRM(String[] nodes) {
         Priority pri = Priority.newInstance(requestPriority);
 
         Resource capability = Resource.newInstance(containerMemory, containerVirtualCores);
 
-        ContainerRequest request = new ContainerRequest(capability, null, null, pri);
+        ContainerRequest request = new ContainerRequest(capability, nodes, null, pri);
         LOG.info("Requested container ask: " + request.toString());
         return request;
     }
