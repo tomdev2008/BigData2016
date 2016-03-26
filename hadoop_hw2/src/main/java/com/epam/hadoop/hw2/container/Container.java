@@ -22,10 +22,16 @@ public class Container {
     private static final Log LOG = LogFactory.getLog(Container.class);
 
     public static void main(String[] args) throws TikaException, SAXException, IOException, URISyntaxException, ParseException {
+        String containerId = System.getenv("CONTAINER_ID");
 
+        LOG.info("Initialization container " + containerId);
+        System.out.println("Initialization container " + containerId);
 
         Options opts = new Options();
-        opts.addOption("appname", true, "Application Name. Default value - LinksProcessor");
+        opts.addOption(CliConstants.OFFSET, true, "Offset");
+        opts.addOption(CliConstants.LENGTH, true, "Length");
+        opts.addOption(CliConstants.INPUT, true, "Input");
+        opts.addOption(CliConstants.OUTPUT, true, "Output");
 
         CommandLine cliParser = new GnuParser().parse(opts, args);
 
@@ -34,7 +40,7 @@ public class Container {
         String input = cliParser.getOptionValue(CliConstants.INPUT);
         String output = cliParser.getOptionValue(CliConstants.OUTPUT);
 
-        LOG.info("Started container with" +
+        LOG.info("Started container " + containerId + " with" +
                 " offset=" + offset +
                 " length=" + length +
                 " input=" + input +

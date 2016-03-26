@@ -4,17 +4,14 @@ import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
-import java.security.PrivilegedExceptionAction;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import com.epam.hadoop.hw2.CliUtils;
 import com.epam.hadoop.hw2.DSConstants;
 import com.epam.hadoop.hw2.ResourcesUtils;
 import com.epam.hadoop.hw2.constants.CliConstants;
@@ -26,22 +23,17 @@ import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.net.NetUtils;
-import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.ExitUtil;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
-import org.apache.hadoop.yarn.api.ContainerManagementProtocol;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerExitStatus;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
-import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.LocalResource;
@@ -57,7 +49,6 @@ import org.apache.hadoop.yarn.client.api.async.NMClientAsync;
 import org.apache.hadoop.yarn.client.api.async.impl.NMClientAsyncImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
-import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.log4j.LogManager;
 
@@ -425,7 +416,7 @@ public class ApplicationMaster {
                 throw new RuntimeException(e);
             }
 
-            Block freeBlock = fileBlocks.findFreeBlock(allocatedContainer.getNodeId().getHost());
+            Block freeBlock = fileBlocks.getAndMarkInProgressFreeBlock(allocatedContainer.getNodeId().getHost());
 
             String command = Arrays.asList(
                     Environment.JAVA_HOME.$$() + "/bin/java",
@@ -441,7 +432,7 @@ public class ApplicationMaster {
 
             LOG.info("Container command = " + command);
 
-            List<String> commands = new ArrayList<String>();
+            List<String> commands = new ArrayList<>();
             commands.add(command);
 
             ContainerLaunchContext ctx = ContainerLaunchContext.newInstance(

@@ -20,12 +20,14 @@ public class FileBlocks {
         blocks.add(block);
     }
 
-    public synchronized Block findFreeBlock(String host) {
-        return blocks.stream()
+    public synchronized Block getAndMarkInProgressFreeBlock(String host) {
+        Block freeBlock = blocks.stream()
                 .filter(block -> presentsOnHost(block, host))
                 .filter(block -> BlockStatus.FREE.equals(block.getStatus()))
                 .findFirst()
                 .get();
+        freeBlock.setStatus(BlockStatus.IN_PROGRESS);
+        return freeBlock;
     }
 
     private boolean presentsOnHost(Block block, String host) {
