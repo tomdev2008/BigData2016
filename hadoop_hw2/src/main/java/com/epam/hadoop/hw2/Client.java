@@ -23,39 +23,6 @@ import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 
-/**
- * Client for Distributed Shell application submission to YARN.
- *
- * <p> The distributed shell client allows an application master to be launched that in turn would run
- * the provided shell command on a set of containers. </p>
- *
- * <p>This client is meant to act as an example on how to write yarn-based applications. </p>
- *
- * <p> To submit an application, a client first needs to connect to the <code>ResourceManager</code>
- * aka ApplicationsManager or ASM via the {@link ApplicationClientProtocol}. The {@link ApplicationClientProtocol}
- * provides a way for the client to get access to cluster information and to request for a
- * new {@link ApplicationId}. <p>
- *
- * <p> For the actual job submission, the client first has to create an {@link ApplicationSubmissionContext}.
- * The {@link ApplicationSubmissionContext} defines the application details such as {@link ApplicationId}
- * and application name, the priority assigned to the application and the queue
- * to which this application needs to be assigned. In addition to this, the {@link ApplicationSubmissionContext}
- * also defines the {@link ContainerLaunchContext} which describes the <code>Container</code> with which
- * the {@link ApplicationMaster} is launched. </p>
- *
- * <p> The {@link ContainerLaunchContext} in this scenario defines the resources to be allocated for the
- * {@link ApplicationMaster}'s container, the local resources (jars, configuration files) to be made available
- * and the environment to be set for the {@link ApplicationMaster} and the commands to be executed to run the
- * {@link ApplicationMaster}. <p>
- *
- * <p> Using the {@link ApplicationSubmissionContext}, the client submits the application to the
- * <code>ResourceManager</code> and then monitors the application by requesting the <code>ResourceManager</code>
- * for an {@link ApplicationReport} at regular time intervals. In case of the application taking too long, the client
- * kills the application by submitting a {@link KillApplicationRequest} to the <code>ResourceManager</code>. </p>
- *
- */
-@InterfaceAudience.Public
-@InterfaceStability.Unstable
 public class Client {
 
     private static final Log LOG = LogFactory.getLog(Client.class);
@@ -78,16 +45,6 @@ public class Client {
     private String appMasterJar = "";
     // Main class to invoke application master
     private final String appMasterMainClass;
-
-    // Shell Command Container priority
-    private int shellCmdPriority = 0;
-
-    // Amt of memory to request for container in which shell script will be executed
-    private int containerMemory = 10;
-    // Amt. of virtual cores to request for container in which shell script will be executed
-    private int containerVirtualCores = 1;
-    // No. of containers in which the shell script needs to be executed
-    private int numContainers = 1;
 
     // flag to indicate whether to keep containers across application attempts.
     private boolean keepContainers = false;

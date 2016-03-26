@@ -4,6 +4,8 @@ import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.security.PrivilegedExceptionAction;
 import java.util.*;
@@ -18,6 +20,8 @@ import org.apache.commons.cli.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.BlockLocation;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataOutputBuffer;
@@ -253,7 +257,7 @@ public class ApplicationMaster {
      * @throws IOException
      */
     @SuppressWarnings({ "unchecked" })
-    public void run() throws YarnException, IOException {
+    public void run() throws YarnException, IOException, URISyntaxException {
         LOG.info("Starting ApplicationMaster");
         try {
             publishApplicationAttemptEvent(timelineClient, appAttemptID.toString(), DSEvent.DS_APP_ATTEMPT_START);
@@ -276,18 +280,20 @@ public class ApplicationMaster {
 
         modifyRequiredResources(response);
 
-//        List<Container> previousAMRunningContainers = response.getContainersFromPreviousAttempts();
-//        LOG.info(appAttemptID + " received " + previousAMRunningContainers.size() + " previous attempts' running containers on AM registration.");
-//        numAllocatedContainers.addAndGet(previousAMRunningContainers.size());
-//
-//        int numTotalContainersToRequest = numTotalContainers - previousAMRunningContainers.size();
+        Configuration conf = new Configuration ();
+        URI hdfsUrl = new URI("hdfs://sandbox/");
+        FileSystem fileSystem = FileSystem.get(hdfsUrl, conf);
 
-        for (int i = 0; i < 2; ++i) {
+        Path path = new Path("/tmp/hadoop2hw/user.profile.tags.us.test3.txt");
+        FileStatus fileStatus = fileSystem.getFileStatus(path);
+        BlockLocation[] fileBlockLocations = fileSystem.getFileBlockLocations(fileStatus, 0L, fileStatus.getLen());
+
+
+        for (int i = 0; i < 3; ++i) {
             ContainerRequest containerAsk = setupContainerAskForRM();
             amRMClient.addContainerRequest(containerAsk);
             LOG.info("Ask container " + containerAsk);
         }
-//        numRequestedContainers.set(numTotalContainers);
         try {
             publishApplicationAttemptEvent(timelineClient, appAttemptID.toString(), DSEvent.DS_APP_ATTEMPT_END);
         } catch (Exception e) {
@@ -472,8 +478,7 @@ public class ApplicationMaster {
         @Override
         public float getProgress() {
             // set progress to deliver to RM on next heartbeat
-            float progress = (float) numCompletedContainers.get() / numTotalContainers;
-            return progress;
+            return 0.5F;
         }
 
         @Override
@@ -693,8 +698,7 @@ public class ApplicationMaster {
         TimelineEntity entity = new TimelineEntity();
         entity.setEntityId(container.getContainerId().toString());
         entity.setEntityType(DSEntity.DS_CONTAINER.toString());
-        entity.addPrimaryFilter("user",
-                UserGroupInformation.getCurrentUser().getShortUserName());
+        entity.addPrimaryFilter("user", UserGroupInformation.getCurrentUser().getShortUserName());
         TimelineEvent event = new TimelineEvent();
         event.setTimestamp(System.currentTimeMillis());
         event.setEventType(DSEvent.DS_CONTAINER_END.toString());
@@ -711,8 +715,7 @@ public class ApplicationMaster {
         TimelineEntity entity = new TimelineEntity();
         entity.setEntityId(appAttemptId);
         entity.setEntityType(DSEntity.DS_APP_ATTEMPT.toString());
-        entity.addPrimaryFilter("user",
-                UserGroupInformation.getCurrentUser().getShortUserName());
+        entity.addPrimaryFilter("user", UserGroupInformation.getCurrentUser().getShortUserName());
         TimelineEvent event = new TimelineEvent();
         event.setEventType(appEvent.toString());
         event.setTimestamp(System.currentTimeMillis());
