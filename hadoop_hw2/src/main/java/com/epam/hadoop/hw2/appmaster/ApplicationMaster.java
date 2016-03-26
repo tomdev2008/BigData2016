@@ -74,9 +74,6 @@ public class ApplicationMaster {
     @SuppressWarnings("rawtypes")
     private AMRMClientAsync amRMClient;
 
-    // In both secure and non-secure modes, this points to the job-submitter.
-    private UserGroupInformation appSubmitterUgi;
-
     // Handle to communicate with the Node Manager
     private NMClientAsync nmClientAsync;
     // Listen to process the response from the Node Manager
@@ -85,10 +82,6 @@ public class ApplicationMaster {
     // Application Attempt Id ( combination of attemptId and fail count )
     protected ApplicationAttemptId appAttemptID;
 
-    // TODO
-    // For status update for clients - yet to be implemented
-    // Hostname of the container
-    private String appMasterHostname = "";
     // Port on which the app master listens for status updates from clients
     private int appMasterRpcPort = -1;
     // Tracking url to which app master publishes info for clients to monitor
@@ -116,44 +109,12 @@ public class ApplicationMaster {
     // Only request for more if the original requirement changes.
     protected AtomicInteger numRequestedContainers = new AtomicInteger();
 
-    // Shell command to be executed
-    private String shellCommand = "";
-    // Args to be passed to the shell command
-    private String shellArgs = "";
-    // Env variables to be setup for the shell command
-    private Map<String, String> shellEnv = new HashMap<String, String>();
-
-    // Location of shell script ( obtained from info set in env )
-    // Shell script path in fs
-    private String scriptPath = "";
-    // Timestamp needed for creating a local resource
-    private long shellScriptPathTimestamp = 0;
-    // File length needed for local resource
-    private long shellScriptPathLen = 0;
-
-    // Hardcoded path to shell script in launch container's local env
-//    private static final String ExecShellStringPath = Client.SCRIPT_PATH + ".sh";
-//    private static final String ExecBatScripStringtPath = Client.SCRIPT_PATH
-//            + ".bat";
-
-    // Hardcoded path to custom log_properties
-    private static final String log4jPath = "log4j.properties";
-
-    private static final String shellCommandPath = "shellCommands";
-    private static final String shellArgsPath = "shellArgs";
-
     private volatile boolean done;
 
-    private ByteBuffer allTokens;
-
-    // Launch threads
     private List<Thread> launchThreads = new ArrayList<Thread>();
 
     // Timeline Client
     private TimelineClient timelineClient;
-
-    private final String linux_bash_command = "bash";
-    private final String windows_command = "cmd /c";
 
     private String jarPath;
     private long jarPathLen;
@@ -300,38 +261,33 @@ public class ApplicationMaster {
             LOG.error("App Attempt start event coud not be pulished for " + appAttemptID.toString(), e);
         }
 
-        // Create appSubmitterUgi and add original tokens to it
-        String appSubmitterUserName =
-                System.getenv(ApplicationConstants.Environment.USER.name());
-        appSubmitterUgi = UserGroupInformation.createRemoteUser(appSubmitterUserName);
-
-        AMRMClientAsync.CallbackHandler allocListener = new RMCallbackHandler();
-        amRMClient = AMRMClientAsync.createAMRMClientAsync(1000, allocListener);
+        AMRMClientAsync.CallbackHandler amRmListener = new RMCallbackHandler();
+        amRMClient = AMRMClientAsync.createAMRMClientAsync(1000, amRmListener);
         amRMClient.init(conf);
         amRMClient.start();
 
-        containerListener = createNMCallbackHandler();
+        containerListener = new NMCallbackHandler(this);
         nmClientAsync = new NMClientAsyncImpl(containerListener);
         nmClientAsync.init(conf);
         nmClientAsync.start();
 
-        appMasterHostname = NetUtils.getHostname();
-        RegisterApplicationMasterResponse response = amRMClient
-                .registerApplicationMaster(appMasterHostname, appMasterRpcPort, appMasterTrackingUrl);
+        String appMasterHostname = NetUtils.getHostname();
+        RegisterApplicationMasterResponse response = amRMClient.registerApplicationMaster(appMasterHostname, appMasterRpcPort, appMasterTrackingUrl);
 
         modifyRequiredResources(response);
 
-        List<Container> previousAMRunningContainers = response.getContainersFromPreviousAttempts();
-        LOG.info(appAttemptID + " received " + previousAMRunningContainers.size() + " previous attempts' running containers on AM registration.");
-        numAllocatedContainers.addAndGet(previousAMRunningContainers.size());
+//        List<Container> previousAMRunningContainers = response.getContainersFromPreviousAttempts();
+//        LOG.info(appAttemptID + " received " + previousAMRunningContainers.size() + " previous attempts' running containers on AM registration.");
+//        numAllocatedContainers.addAndGet(previousAMRunningContainers.size());
+//
+//        int numTotalContainersToRequest = numTotalContainers - previousAMRunningContainers.size();
 
-        int numTotalContainersToRequest = numTotalContainers - previousAMRunningContainers.size();
-
-        for (int i = 0; i < numTotalContainersToRequest; ++i) {
+        for (int i = 0; i < 2; ++i) {
             ContainerRequest containerAsk = setupContainerAskForRM();
             amRMClient.addContainerRequest(containerAsk);
+            LOG.info("Ask container " + containerAsk);
         }
-        numRequestedContainers.set(numTotalContainers);
+//        numRequestedContainers.set(numTotalContainers);
         try {
             publishApplicationAttemptEvent(timelineClient, appAttemptID.toString(), DSEvent.DS_APP_ATTEMPT_END);
         } catch (Exception e) {
@@ -353,10 +309,6 @@ public class ApplicationMaster {
             LOG.info("Container virtual cores specified above max threshold of cluster. Using max value." + ", specified=" + containerVirtualCores + ", max=" + maxVCores);
             containerVirtualCores = maxVCores;
         }
-    }
-
-    NMCallbackHandler createNMCallbackHandler() {
-        return new NMCallbackHandler(this);
     }
 
     protected boolean finish() {
@@ -696,19 +648,11 @@ public class ApplicationMaster {
      * @return the setup ResourceRequest to be sent to RM
      */
     private ContainerRequest setupContainerAskForRM() {
-        // setup requirements for hosts
-        // using * as any host will do for the distributed shell app
-        // set the priority for the request
-        // TODO - what is the range for priority? how to decide?
         Priority pri = Priority.newInstance(requestPriority);
 
-        // Set up resource type requirements
-        // For now, memory and CPU are supported so we set memory and cpu requirements
-        Resource capability = Resource.newInstance(containerMemory,
-                containerVirtualCores);
+        Resource capability = Resource.newInstance(containerMemory, containerVirtualCores);
 
-        ContainerRequest request = new ContainerRequest(capability, null, null,
-                pri);
+        ContainerRequest request = new ContainerRequest(capability, null, null, pri);
         LOG.info("Requested container ask: " + request.toString());
         return request;
     }
