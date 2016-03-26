@@ -388,6 +388,13 @@ public class ApplicationMaster {
                         + containerStatus.getState() + ", exitStatus="
                         + containerStatus.getExitStatus() + ", diagnostics="
                         + containerStatus.getDiagnostics());
+
+                try {
+                    publishContainerEndEvent(timelineClient, containerStatus);
+                } catch (Exception e) {
+                    LOG.error("Container start event could not be pulished for "
+                            + containerStatus.getContainerId().toString(), e);
+                }
             }
         }
 
