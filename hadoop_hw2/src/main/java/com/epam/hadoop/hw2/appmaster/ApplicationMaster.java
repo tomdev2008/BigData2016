@@ -14,8 +14,10 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import com.epam.hadoop.hw2.CliUtils;
 import com.epam.hadoop.hw2.DSConstants;
 import com.epam.hadoop.hw2.ResourcesUtils;
+import com.epam.hadoop.hw2.constants.CliConstants;
 import org.apache.commons.cli.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -58,6 +60,8 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.log4j.LogManager;
+
+import static com.epam.hadoop.hw2.CliUtils.param;
 
 public class ApplicationMaster {
 
@@ -133,6 +137,8 @@ public class ApplicationMaster {
 
     private AtomicInteger numberContainers = new AtomicInteger();
     private AtomicInteger numberCompletedContainers = new AtomicInteger();
+
+    private FileBlocks fileBlocks = new FileBlocks();
 
     /**
      * @param args Command line args
@@ -301,6 +307,7 @@ public class ApplicationMaster {
         BlockLocation[] fileBlockLocations = fileSystem.getFileBlockLocations(fileStatus, 0L, fileStatus.getLen());
         LOG.info("Found " + fileBlockLocations.length + " blocks of file " + input);
         for (BlockLocation blockLocation: fileBlockLocations) {
+            fileBlocks.addBlock(new Block(blockLocation));
             LOG.info("Asking container for block (" + blockLocation.getOffset() + "," + blockLocation.getLength() + ") of file " + input);
             ContainerRequest containerAsk = setupContainerAskForRM(blockLocation.getHosts());
             amRMClient.addContainerRequest(containerAsk);
@@ -409,7 +416,7 @@ public class ApplicationMaster {
             env.put("CLASSPATH", classPathEnv);
 
             // Set the local resources
-            Map<String, LocalResource> localResources = new HashMap<String, LocalResource>();
+            Map<String, LocalResource> localResources = new HashMap<>();
 
             try {
                 ResourcesUtils.addToLocalResources(localResources, new Path(jarPath), appMasterJarPath, jarPathLen, jarPathTime);
@@ -418,14 +425,15 @@ public class ApplicationMaster {
                 throw new RuntimeException(e);
             }
 
-            // Set the necessary command to execute on the allocated container
-            Vector<CharSequence> vargs = new Vector<CharSequence>(5);
+            Block freeBlock = fileBlocks.findFreeBlock(allocatedContainer.getNodeId().getHost());
 
             String command = Arrays.asList(
                     Environment.JAVA_HOME.$$() + "/bin/java",
                     com.epam.hadoop.hw2.container.Container.class.getName(),
-                    input,
-                    output,
+                    param(CliConstants.INPUT, input),
+                    param(CliConstants.OUTPUT, output),
+                    param(CliConstants.OFFSET, freeBlock.getBlockLocation().getOffset()),
+                    param(CliConstants.LENGTH, freeBlock.getBlockLocation().getLength()),
                     "1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout",
                     "2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr")
                     .stream()
