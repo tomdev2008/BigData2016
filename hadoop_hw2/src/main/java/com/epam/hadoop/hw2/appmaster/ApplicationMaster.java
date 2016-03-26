@@ -401,9 +401,9 @@ public class ApplicationMaster {
                         + ", containerNode=" + allocatedContainer.getNodeId().getHost()
                         + ":" + allocatedContainer.getNodeId().getPort()
                         + ", containerNodeURI=" + allocatedContainer.getNodeHttpAddress()
-                        + ", containerResourceMemory"
+                        + ", containerResourceMemory="
                         + allocatedContainer.getResource().getMemory()
-                        + ", containerResourceVirtualCores"
+                        + ", containerResourceVirtualCores="
                         + allocatedContainer.getResource().getVirtualCores());
 
                 allocateContainer(allocatedContainer);

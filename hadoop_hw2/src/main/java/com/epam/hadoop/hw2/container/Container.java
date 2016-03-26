@@ -20,5 +20,7 @@ public class Container {
 
         LinksProcessor linksProcessor = new LinkProcessorFactory().create();
         linksProcessor.process(args[0], args[1]);
+
+        LOG.info("Container completed");
     }
 }

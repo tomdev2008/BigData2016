@@ -1,6 +1,8 @@
 package com.epam.hadoop.hw2.container;
 
 import com.epam.hadoop.hw2.container.exceptions.ParseException;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
 import java.util.List;
@@ -10,6 +12,8 @@ import java.util.stream.Collectors;
  * Created by root on 3/24/16.
  */
 public class LinksProcessor {
+
+    private static final Log LOG = LogFactory.getLog(LinksProcessor.class);
 
     public static final long TOP_N = 10L;
 
@@ -29,11 +33,11 @@ public class LinksProcessor {
 
     private OutputLinkLine processLine(InputLinkLine linkLine) {
         try {
-            System.out.println("processing line " + linkLine);
+            LOG.info("processing line " + linkLine);
             String htmlBody = loader.load(linkLine.getLink());
             List<String> words = crawler.extractWords(htmlBody);
             List<String> topWords = counter.getTopWords(words, TOP_N);
-            System.out.println("top words " + topWords);
+            LOG.info("top words " + topWords);
             return new OutputLinkLine(linkLine, topWords);
         } catch (ParseException e) {
             e.printStackTrace(); //TODO
