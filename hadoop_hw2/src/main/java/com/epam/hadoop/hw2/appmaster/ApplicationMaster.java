@@ -131,6 +131,9 @@ public class ApplicationMaster {
 
     private FileSystem fileSystem;
 
+    private AtomicInteger numberContainers = new AtomicInteger();
+    private AtomicInteger numberCompletedContainers = new AtomicInteger();
+
     /**
      * @param args Command line args
      */
@@ -302,6 +305,7 @@ public class ApplicationMaster {
             ContainerRequest containerAsk = setupContainerAskForRM(blockLocation.getHosts());
             amRMClient.addContainerRequest(containerAsk);
             LOG.info("Asked container for block (" + blockLocation.getOffset() + "," + blockLocation.getLength() + ") of file " + input);
+            numberContainers.incrementAndGet();
         }
     }
 
@@ -322,27 +326,12 @@ public class ApplicationMaster {
     }
 
     protected boolean finish() {
-        // wait for completion.
-        while (!done
-                && (numCompletedContainers.get() != numTotalContainers)) {
+        while (!done) {
             try {
-                Thread.sleep(200);
+                LOG.info("Wait for completion...");
+                Thread.sleep(1000);
             } catch (InterruptedException ex) {}
         }
-
-        // Join all launched threads
-        // needed for when we time out
-        // and we need to release containers
-        for (Thread launchThread : launchThreads) {
-            try {
-                launchThread.join(10000);
-            } catch (InterruptedException e) {
-                LOG.info("Exception thrown in thread join: " + e.getMessage());
-                e.printStackTrace();
-            }
-        }
-
-        // When the application completes, it should stop all running containers
         LOG.info("Application completed. Stopping running containers");
         nmClientAsync.stop();
 
@@ -350,38 +339,24 @@ public class ApplicationMaster {
         // signal to the RM
         LOG.info("Application completed. Signalling finish to RM");
 
-        FinalApplicationStatus appStatus;
-        String appMessage = null;
-        boolean success = true;
-        if (numFailedContainers.get() == 0 &&
-                numCompletedContainers.get() == numTotalContainers) {
-            appStatus = FinalApplicationStatus.SUCCEEDED;
-        } else {
-            appStatus = FinalApplicationStatus.FAILED;
-            appMessage = "Diagnostics." + ", total=" + numTotalContainers
-                    + ", completed=" + numCompletedContainers.get() + ", allocated="
-                    + numAllocatedContainers.get() + ", failed="
-                    + numFailedContainers.get();
-            success = false;
-        }
+        FinalApplicationStatus appStatus = FinalApplicationStatus.SUCCEEDED;
         try {
-            amRMClient.unregisterApplicationMaster(appStatus, appMessage, null);
-        } catch (YarnException ex) {
+            amRMClient.unregisterApplicationMaster(appStatus, null, null);
+        } catch (YarnException | IOException ex) {
             LOG.error("Failed to unregister application", ex);
-        } catch (IOException e) {
-            LOG.error("Failed to unregister application", e);
         }
 
         amRMClient.stop();
 
-        return success;
+        return true;
     }
 
     private class RMCallbackHandler implements AMRMClientAsync.CallbackHandler {
         @SuppressWarnings("unchecked")
         @Override
         public void onContainersCompleted(List<ContainerStatus> completedContainers) {
-            LOG.info("Got response from RM for container statuses. Statuses number=" + completedContainers.size());
+            LOG.info("Got response from RM for container ask, completedCnt="
+                    + completedContainers.size());
             for (ContainerStatus containerStatus : completedContainers) {
                 LOG.info(appAttemptID + " got container status for containerID="
                         + containerStatus.getContainerId() + ", state="
@@ -389,12 +364,20 @@ public class ApplicationMaster {
                         + containerStatus.getExitStatus() + ", diagnostics="
                         + containerStatus.getDiagnostics());
 
+                if (containerStatus.getExitStatus() == ContainerExitStatus.SUCCESS) {
+                    numberCompletedContainers.incrementAndGet();
+                } else {
+                    LOG.error("Container " + containerStatus.getContainerId() + " failed with status " + containerStatus.getExitStatus());
+                }
                 try {
                     publishContainerEndEvent(timelineClient, containerStatus);
                 } catch (Exception e) {
                     LOG.error("Container start event could not be pulished for "
                             + containerStatus.getContainerId().toString(), e);
                 }
+            }
+            if(numberContainers.get() == numberCompletedContainers.get()) {
+                done = true;
             }
         }
 
