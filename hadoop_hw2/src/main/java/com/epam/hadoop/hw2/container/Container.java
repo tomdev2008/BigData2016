@@ -35,19 +35,19 @@ public class Container {
 
         CommandLine cliParser = new GnuParser().parse(opts, args);
 
-        String offset = cliParser.getOptionValue(CliConstants.OFFSET);
-        String length = cliParser.getOptionValue(CliConstants.LENGTH);
         String input = cliParser.getOptionValue(CliConstants.INPUT);
         String output = cliParser.getOptionValue(CliConstants.OUTPUT);
+        Long offset = Long.parseLong(cliParser.getOptionValue(CliConstants.OFFSET));
+        Long length = Long.parseLong(cliParser.getOptionValue(CliConstants.LENGTH));
 
         LOG.info("Started container " + containerId + " with" +
-                " offset=" + offset +
-                " length=" + length +
                 " input=" + input +
-                " output=" + output);
+                " output=" + output +
+                " offset=" + offset +
+                " length=" + length);
 
         LinksProcessor linksProcessor = new LinkProcessorFactory().create();
-//        linksProcessor.process(input, output);
+        linksProcessor.process(input, output, offset, length);
 
         LOG.info("Container completed");
     }
