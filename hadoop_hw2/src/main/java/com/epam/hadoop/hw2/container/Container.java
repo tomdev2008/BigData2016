@@ -47,7 +47,7 @@ public class Container {
                 " length=" + length);
 
         LinksProcessor linksProcessor = new LinkProcessorFactory().create();
-        linksProcessor.process(input, output, offset, length);
+        linksProcessor.process(input, output, offset, length, containerId);
 
         LOG.info("Container completed");
     }

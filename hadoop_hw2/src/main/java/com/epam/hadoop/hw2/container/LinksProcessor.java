@@ -33,17 +33,20 @@ public class LinksProcessor {
 
     private FileSystem fileSystem;
 
-    public void process(String srcFilePath, String destinationFilePath, Long offset, Long length) throws IOException { //TODO handle IO
+    public void process(String srcFilePath, String destinationFilePath, Long offset, Long length, String containerId) throws IOException { //TODO handle IO
+        Path containerHdfsPath = new Path("/tmp/" + containerId);
+        fileSystem.mkdirs(containerHdfsPath);
+        Path resultHdfsPath = new Path(containerHdfsPath, "/result");
         try (
                 FSDataInputStream inputStream = fileSystem.open(new Path(srcFilePath));
                 BufferedInputStream bufferedInputStream = new BufferedInputStream(inputStream);
-                FSDataOutputStream outputStream = fileSystem.create(new Path(destinationFilePath));
+                FSDataOutputStream outputStream = fileSystem.create(resultHdfsPath);
                 PrintWriter writer = new PrintWriter(outputStream)
         ) {
             Splitter splitter = new Splitter(bufferedInputStream, offset, length, true);
 
-            Stream<String> stream = StreamSupport.stream(Spliterators.spliteratorUnknownSize(
-                    splitter, Spliterator.ORDERED | Spliterator.NONNULL), false);
+            Spliterator<String> spliterator = Spliterators.spliteratorUnknownSize(splitter, Spliterator.ORDERED | Spliterator.NONNULL);
+            Stream<String> stream = StreamSupport.stream(spliterator, true);
             stream.map(this::mapToInputLinkLine)
                     .map(this::processLine)
                     .forEach(outputLinkLine -> write(writer, outputLinkLine));
@@ -67,7 +70,10 @@ public class LinksProcessor {
         String line = lineItems
                 .stream()
                 .collect(Collectors.joining("\t"));
-        writer.println(line);
+        synchronized (writer) {
+            LOG.info("writing line: " + line);
+            writer.println(line);
+        }
     }
 
     private OutputLinkLine processLine(InputLinkLine linkLine) {
