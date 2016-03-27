@@ -1,6 +1,7 @@
 package com.epam.hadoop.hw2.container;
 
 import com.epam.hadoop.hw2.container.exceptions.ParseException;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -47,7 +48,8 @@ public class LinksProcessor {
 
             Spliterator<String> spliterator = Spliterators.spliteratorUnknownSize(splitter, Spliterator.ORDERED | Spliterator.NONNULL);
             Stream<String> stream = StreamSupport.stream(spliterator, true);
-            stream.map(this::mapToInputLinkLine)
+            stream.filter(StringUtils::isNotBlank)
+                    .map(this::mapToInputLinkLine)
                     .map(this::processLine)
                     .forEach(outputLinkLine -> write(writer, outputLinkLine));
         }
@@ -55,6 +57,7 @@ public class LinksProcessor {
 
     private InputLinkLine mapToInputLinkLine(String line) {
         ArrayList<String> lineItems = new ArrayList<>(Arrays.asList(line.split(ITEMS_SEPARATOR)));
+        LOG.info("lineItems = " + lineItems);
         return new InputLinkLine(lineItems);
     }
 

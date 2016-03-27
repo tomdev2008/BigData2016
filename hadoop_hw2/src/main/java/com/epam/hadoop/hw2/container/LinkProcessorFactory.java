@@ -38,6 +38,7 @@ public class LinkProcessorFactory {
         repository.setFileSystem(fileSystem);
         crawler.setAutoDetectParser(parser);
         LinksProcessor linksProcessor = new LinksProcessor();
+        linksProcessor.setFileSystem(fileSystem);
         linksProcessor.setRepository(repository);
         linksProcessor.setLoader(loader);
         linksProcessor.setCrawler(crawler);
