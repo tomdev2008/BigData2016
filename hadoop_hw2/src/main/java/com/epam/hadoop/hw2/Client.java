@@ -5,18 +5,17 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import com.epam.hadoop.hw2.appmaster.ApplicationMaster;
+import com.epam.hadoop.hw2.constants.CommonConstants;
+import com.epam.hadoop.hw2.dto.FileInfo;
+import com.epam.hadoop.hw2.utils.ResourcesUtils;
 import org.apache.commons.cli.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.yarn.api.ApplicationClientProtocol;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
-import org.apache.hadoop.yarn.api.protocolrecords.KillApplicationRequest;
 import org.apache.hadoop.yarn.api.records.*;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.YarnClientApplication;
@@ -234,9 +233,9 @@ public class Client {
     private Map<String, String> getEnvVars(FileInfo jarFileInfo) {
         LOG.info("Set the environment for the application master");
         Map<String, String> env = new HashMap<String, String>();
-        env.put(DSConstants.JARLOCATION, jarFileInfo.getPath().toString());
-        env.put(DSConstants.JARLOCATIONLEN, jarFileInfo.getLength().toString());
-        env.put(DSConstants.JARLOCATIONTIME, jarFileInfo.getModificationTime().toString());
+        env.put(CommonConstants.JARLOCATION, jarFileInfo.getPath().toString());
+        env.put(CommonConstants.JARLOCATIONLEN, jarFileInfo.getLength().toString());
+        env.put(CommonConstants.JARLOCATIONTIME, jarFileInfo.getModificationTime().toString());
         return env;
     }
 

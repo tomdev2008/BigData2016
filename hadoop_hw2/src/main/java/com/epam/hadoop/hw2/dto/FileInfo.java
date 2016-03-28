@@ -1,4 +1,4 @@
-package com.epam.hadoop.hw2;
+package com.epam.hadoop.hw2.dto;
 
 import org.apache.hadoop.fs.Path;
 

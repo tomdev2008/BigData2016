@@ -1,4 +1,4 @@
-package com.epam.hadoop.hw2;
+package com.epam.hadoop.hw2.utils;
 
 /**
  * Created by Vitaliy on 3/26/2016.

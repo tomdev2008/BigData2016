@@ -27,7 +27,6 @@ public class LinksProcessor {
     public static final String ITEMS_SEPARATOR = "\t";
     public static final int WORDS_POSITION = 1;
 
-    private Repository repository;
     private Loader loader;
     private Crawler crawler;
     private Counter counter;
@@ -94,9 +93,6 @@ public class LinksProcessor {
         }
     }
 
-    public void setRepository(Repository repository) {
-        this.repository = repository;
-    }
 
     public void setLoader(Loader loader) {
         this.loader = loader;

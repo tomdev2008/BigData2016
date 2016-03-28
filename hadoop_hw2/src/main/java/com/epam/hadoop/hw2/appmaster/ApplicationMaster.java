@@ -9,8 +9,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import com.epam.hadoop.hw2.DSConstants;
-import com.epam.hadoop.hw2.ResourcesUtils;
+import com.epam.hadoop.hw2.constants.CommonConstants;
+import com.epam.hadoop.hw2.utils.ResourcesUtils;
 import com.epam.hadoop.hw2.constants.CliConstants;
 import org.apache.commons.cli.*;
 import org.apache.commons.cli.Options;
@@ -48,18 +48,18 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.log4j.LogManager;
 
-import static com.epam.hadoop.hw2.CliUtils.param;
+import static com.epam.hadoop.hw2.utils.CliUtils.param;
 
 public class ApplicationMaster {
 
     private static final Log LOG = LogFactory.getLog(ApplicationMaster.class);
 
-    public static enum DSEvent {
-        DS_APP_ATTEMPT_START, DS_APP_ATTEMPT_END, DS_CONTAINER_START, DS_CONTAINER_END
+    public enum Event {
+        APP_ATTEMPT_START, APP_ATTEMPT_END, CONTAINER_START, CONTAINER_END
     }
 
-    public static enum DSEntity {
-        DS_APP_ATTEMPT, DS_CONTAINER
+    public enum Entity {
+        APP_ATTEMPT, CONTAINER
     }
 
     // Configuration
@@ -210,9 +210,9 @@ public class ApplicationMaster {
                 + appAttemptID.getApplicationId().getClusterTimestamp()
                 + ", attemptId=" + appAttemptID.getAttemptId());
 
-        jarPath = envs.get(DSConstants.JARLOCATION);
-        jarPathLen = Long.parseLong(envs.get(DSConstants.JARLOCATIONLEN));
-        jarPathTime = Long.parseLong(envs.get(DSConstants.JARLOCATIONTIME));
+        jarPath = envs.get(CommonConstants.JARLOCATION);
+        jarPathLen = Long.parseLong(envs.get(CommonConstants.JARLOCATIONLEN));
+        jarPathTime = Long.parseLong(envs.get(CommonConstants.JARLOCATIONTIME));
 
         containerMemory = Integer.parseInt(cliParser.getOptionValue("container_memory", "10"));
         containerVirtualCores = Integer.parseInt(cliParser.getOptionValue("container_vcores", "1"));
@@ -259,7 +259,7 @@ public class ApplicationMaster {
     public void run() throws YarnException, IOException, URISyntaxException {
         LOG.info("Starting ApplicationMaster");
         try {
-            publishApplicationAttemptEvent(timelineClient, appAttemptID.toString(), DSEvent.DS_APP_ATTEMPT_START);
+            publishApplicationAttemptEvent(timelineClient, appAttemptID.toString(), Event.APP_ATTEMPT_START);
         } catch (Exception e) {
             LOG.error("App Attempt start event coud not be pulished for " + appAttemptID.toString(), e);
         }
@@ -282,7 +282,7 @@ public class ApplicationMaster {
         askContainers();
 
         try {
-            publishApplicationAttemptEvent(timelineClient, appAttemptID.toString(), DSEvent.DS_APP_ATTEMPT_END);
+            publishApplicationAttemptEvent(timelineClient, appAttemptID.toString(), Event.APP_ATTEMPT_END);
         } catch (Exception e) {
             LOG.error("App Attempt start event coud not be pulished for " + appAttemptID.toString(), e);
         }
@@ -495,7 +495,7 @@ public class ApplicationMaster {
         @Override
         public float getProgress() {
             // set progress to deliver to RM on next heartbeat
-            return 0.5F;
+            return 0;
         }
 
         @Override
@@ -592,30 +592,16 @@ public class ApplicationMaster {
         return request;
     }
 
-    private boolean fileExist(String filePath) {
-        return new File(filePath).exists();
-    }
-
-    private String readContent(String filePath) throws IOException {
-        DataInputStream ds = null;
-        try {
-            ds = new DataInputStream(new FileInputStream(filePath));
-            return ds.readUTF();
-        } finally {
-            org.apache.commons.io.IOUtils.closeQuietly(ds);
-        }
-    }
-
     private static void publishContainerStartEvent(TimelineClient timelineClient,
                                                    Container container) throws IOException, YarnException {
         TimelineEntity entity = new TimelineEntity();
         entity.setEntityId(container.getId().toString());
-        entity.setEntityType(DSEntity.DS_CONTAINER.toString());
+        entity.setEntityType(Entity.CONTAINER.toString());
         entity.addPrimaryFilter("user",
                 UserGroupInformation.getCurrentUser().getShortUserName());
         TimelineEvent event = new TimelineEvent();
         event.setTimestamp(System.currentTimeMillis());
-        event.setEventType(DSEvent.DS_CONTAINER_START.toString());
+        event.setEventType(Event.CONTAINER_START.toString());
         event.addEventInfo("Node", container.getNodeId().toString());
         event.addEventInfo("Resources", container.getResource().toString());
         entity.addEvent(event);
@@ -627,11 +613,11 @@ public class ApplicationMaster {
                                                  ContainerStatus container) throws IOException, YarnException {
         TimelineEntity entity = new TimelineEntity();
         entity.setEntityId(container.getContainerId().toString());
-        entity.setEntityType(DSEntity.DS_CONTAINER.toString());
+        entity.setEntityType(Entity.CONTAINER.toString());
         entity.addPrimaryFilter("user", UserGroupInformation.getCurrentUser().getShortUserName());
         TimelineEvent event = new TimelineEvent();
         event.setTimestamp(System.currentTimeMillis());
-        event.setEventType(DSEvent.DS_CONTAINER_END.toString());
+        event.setEventType(Event.CONTAINER_END.toString());
         event.addEventInfo("State", container.getState().name());
         event.addEventInfo("Exit Status", container.getExitStatus());
         entity.addEvent(event);
@@ -640,11 +626,11 @@ public class ApplicationMaster {
     }
 
     private static void publishApplicationAttemptEvent(
-            TimelineClient timelineClient, String appAttemptId, DSEvent appEvent)
+            TimelineClient timelineClient, String appAttemptId, Event appEvent)
             throws IOException, YarnException {
         TimelineEntity entity = new TimelineEntity();
         entity.setEntityId(appAttemptId);
-        entity.setEntityType(DSEntity.DS_APP_ATTEMPT.toString());
+        entity.setEntityType(Entity.APP_ATTEMPT.toString());
         entity.addPrimaryFilter("user", UserGroupInformation.getCurrentUser().getShortUserName());
         TimelineEvent event = new TimelineEvent();
         event.setEventType(appEvent.toString());

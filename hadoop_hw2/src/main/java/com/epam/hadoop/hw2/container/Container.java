@@ -1,6 +1,5 @@
 package com.epam.hadoop.hw2.container;
 
-import com.epam.hadoop.hw2.CliUtils;
 import com.epam.hadoop.hw2.constants.CliConstants;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;

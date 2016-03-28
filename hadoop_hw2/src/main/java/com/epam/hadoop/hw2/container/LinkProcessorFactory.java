@@ -15,14 +15,12 @@ import java.net.URISyntaxException;
 public class LinkProcessorFactory {
 
     private FileSystem fileSystem;
-    private Repository repository;
     private Crawler crawler;
     private AutoDetectParser parser;
     private Counter counter;
     private Loader loader;
 
     public LinkProcessorFactory() throws URISyntaxException, IOException {
-        repository = new Repository();
         parser = new AutoDetectParser();
         crawler = new Crawler();
         counter = new Counter();
@@ -35,11 +33,9 @@ public class LinkProcessorFactory {
             URI hdfsUrl = new URI("hdfs:///");
             fileSystem = FileSystem.get(hdfsUrl, conf);
         }
-        repository.setFileSystem(fileSystem);
         crawler.setAutoDetectParser(parser);
         LinksProcessor linksProcessor = new LinksProcessor();
         linksProcessor.setFileSystem(fileSystem);
-        linksProcessor.setRepository(repository);
         linksProcessor.setLoader(loader);
         linksProcessor.setCrawler(crawler);
         linksProcessor.setCounter(counter);
@@ -48,10 +44,6 @@ public class LinkProcessorFactory {
 
     public void setFileSystem(FileSystem fileSystem) {
         this.fileSystem = fileSystem;
-    }
-
-    public void setRepository(Repository repository) {
-        this.repository = repository;
     }
 
     public void setCrawler(Crawler crawler) {

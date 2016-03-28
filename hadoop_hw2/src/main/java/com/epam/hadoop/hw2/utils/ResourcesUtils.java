@@ -1,11 +1,9 @@
-package com.epam.hadoop.hw2;
+package com.epam.hadoop.hw2.utils;
 
-import org.apache.commons.io.IOUtils;
-import org.apache.hadoop.fs.FSDataOutputStream;
+import com.epam.hadoop.hw2.dto.FileInfo;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
@@ -20,8 +18,8 @@ import java.util.Map;
 public class ResourcesUtils {
 
     public static FileInfo copyAndAddToLocalResources(FileSystem fs, String fileSrcPath, String fileDstPath, String appId,
-                                               Map<String, LocalResource> localResources,
-                                               String appName) throws IOException {
+                                                      Map<String, LocalResource> localResources,
+                                                      String appName) throws IOException {
         String suffix = appName + "/" + appId + "/" + fileDstPath;
         Path dst = new Path(fs.getHomeDirectory(), suffix);
 
