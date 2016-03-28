@@ -1,9 +1,6 @@
 package com.epam.hadoop.hw2.appmaster;
 
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -16,13 +13,12 @@ import com.epam.hadoop.hw2.DSConstants;
 import com.epam.hadoop.hw2.ResourcesUtils;
 import com.epam.hadoop.hw2.constants.CliConstants;
 import org.apache.commons.cli.*;
+import org.apache.commons.cli.Options;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.BlockLocation;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.*;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.ExitUtil;
@@ -364,6 +360,7 @@ public class ApplicationMaster {
 
                 if (containerStatus.getExitStatus() == ContainerExitStatus.SUCCESS) {
                     numberCompletedContainers.incrementAndGet();
+                    appendResult(containerStatus);
                 } else {
                     LOG.error("Container " + containerStatus.getContainerId() + " failed with status " + containerStatus.getExitStatus());
                 }
@@ -376,6 +373,38 @@ public class ApplicationMaster {
             }
             if(numberContainers.get() == numberCompletedContainers.get()) {
                 done = true;
+            }
+        }
+
+        private void appendResult(ContainerStatus containerStatus) {
+            Path outPath = new Path(output);
+            try {
+                if(!fileSystem.exists(outPath)) {
+                    LOG.info("Creating file " + outPath);
+                    fileSystem.createNewFile(outPath);
+                }
+            } catch (IOException e) {
+                LOG.error("Could not create file " + outPath, e);
+            }
+
+            String containerTmpFolder = "/tmp/" + containerStatus.getContainerId();
+            Path resultPath = new Path(containerTmpFolder + "/result");
+            try (
+                    InputStream inputStream = fileSystem.open(resultPath);
+                    OutputStream outputStream = fileSystem.append(outPath)
+            ) {
+                LOG.info("Copy data from " + resultPath + " to " + outPath);
+                IOUtils.copy(inputStream, outputStream);
+                LOG.info("Copied data from " + resultPath + " to " + outPath);
+            } catch (IOException e) {
+                LOG.error("Could not append result", e);
+            }
+
+            try {
+                LOG.info("Removing folder " + containerTmpFolder);
+                fileSystem.delete(new Path(containerTmpFolder), true);
+            } catch (IOException e) {
+                LOG.error("Could not remove folder " + containerTmpFolder, e);
             }
         }
 

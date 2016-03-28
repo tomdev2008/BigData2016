@@ -35,9 +35,9 @@ public class LinksProcessor {
     private FileSystem fileSystem;
 
     public void process(String srcFilePath, String destinationFilePath, Long offset, Long length, String containerId) throws IOException { //TODO handle IO
-        Path containerHdfsPath = new Path("/tmp/" + containerId);
-        fileSystem.mkdirs(containerHdfsPath);
-        Path resultHdfsPath = new Path(containerHdfsPath, "/result");
+        String containerHdfsPath = "/tmp/" + containerId;
+        fileSystem.mkdirs(new Path(containerHdfsPath));
+        Path resultHdfsPath = new Path(containerHdfsPath + "/result");
         try (
                 FSDataInputStream inputStream = fileSystem.open(new Path(srcFilePath));
                 BufferedInputStream bufferedInputStream = new BufferedInputStream(inputStream);
@@ -76,6 +76,7 @@ public class LinksProcessor {
         synchronized (writer) {
             LOG.info("writing line: " + line);
             writer.println(line);
+            writer.flush();
         }
     }
 
