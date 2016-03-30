@@ -1,5 +1,7 @@
 package com.epam.hadoop3hw.biddings;
 
+import eu.bitwalker.useragentutils.Browser;
+import eu.bitwalker.useragentutils.UserAgent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,11 +12,13 @@ public class Parser {
 
     private static final Logger LOG = LoggerFactory.getLogger(Parser.class);
     public static final int LINE_ITEMS_COUNT = 22;
+    public static final int USER_AGENT_POSITION = 2;
     public static final int IP_POSITION = 4;
     public static final int BIDINGS_POSITION = 18;
 
     private String ip;
     private Long bidings;
+    private String browser;
 
     private boolean success = false;
 
@@ -25,6 +29,10 @@ public class Parser {
             LOG.warn("Wring numbers of items in line " + line);
             return;
         }
+
+        UserAgent userAgent = new UserAgent(lineItems[USER_AGENT_POSITION]);
+        browser = userAgent.getBrowser().getGroup().name();
+
         ip = lineItems[IP_POSITION];
         if(ip == null) {
             LOG.warn("ip is nul in the line {}", line);
@@ -48,6 +56,8 @@ public class Parser {
     private void init() {
         ip = null;
         bidings = null;
+        browser = null;
+
         success = false;
     }
 
@@ -57,5 +67,9 @@ public class Parser {
 
     public Long getBidings() {
         return bidings;
+    }
+
+    public String getBrowser() {
+        return browser;
     }
 }

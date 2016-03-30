@@ -53,6 +53,12 @@ public class BiddingDriver extends Configured implements Tool {
         FileOutputFormat.setOutputCompressorClass(job, SnappyCodec.class);
         SequenceFileOutputFormat.setOutputCompressionType(job, SequenceFile.CompressionType.BLOCK);
 
-        return job.waitForCompletion(true) ? 0 : 1;
+        boolean success = job.waitForCompletion(true);
+        if(success) {
+            job.getCounters()
+                    .getGroup(Constants.BROWSER_GROUP)
+                    .forEach(counter -> System.out.println("browser " + counter.getName() + " count " + counter.getValue()));
+        }
+        return success ? 0 : 1;
     }
 }

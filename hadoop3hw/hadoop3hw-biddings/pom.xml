@@ -60,6 +60,10 @@
             <artifactId>hadoop-yarn-client</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>eu.bitwalker</groupId>
+            <artifactId>UserAgentUtils</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
