@@ -1,6 +1,5 @@
-package biddings;
+package com.epam.hadoop3hw.biddings;
 
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;

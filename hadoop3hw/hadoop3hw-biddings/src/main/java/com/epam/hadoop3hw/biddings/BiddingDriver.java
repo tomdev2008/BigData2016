@@ -1,14 +1,9 @@
-package biddings;
+package com.epam.hadoop3hw.biddings;
 
-import com.epam.hadoop3hw.tags.TagsMapper;
-import com.epam.hadoop3hw.tags.TagsReducer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.compress.SnappyCodec;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -21,12 +16,12 @@ import org.slf4j.LoggerFactory;
 /**
  * Created by root on 3/30/16.
  */
-public class Driver extends Configured implements Tool {
+public class BiddingDriver extends Configured implements Tool {
 
-    private static final Logger LOG = LoggerFactory.getLogger(Driver.class);
+    private static final Logger LOG = LoggerFactory.getLogger(BiddingDriver.class);
 
     public static void main(String[] args) throws Exception {
-        int code = ToolRunner.run(new Driver(), args);
+        int code = ToolRunner.run(new BiddingDriver(), args);
         System.exit(code);
     }
 
@@ -36,7 +31,7 @@ public class Driver extends Configured implements Tool {
         Configuration conf = getConf();
 
         Job job = Job.getInstance(conf, "Hadoop HW3 Biddings");
-        job.setJarByClass(Driver.class);
+        job.setJarByClass(BiddingDriver.class);
         job.setMapperClass(BiddingsMapper.class);
         job.setCombinerClass(BiddingsReducer.class);
         job.setReducerClass(BiddingsReducer.class);

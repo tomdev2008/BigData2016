@@ -1,4 +1,4 @@
-package biddings;
+package com.epam.hadoop3hw.biddings;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

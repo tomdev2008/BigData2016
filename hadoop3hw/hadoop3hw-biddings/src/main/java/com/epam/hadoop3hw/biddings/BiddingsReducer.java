@@ -1,4 +1,4 @@
-package biddings;
+package com.epam.hadoop3hw.biddings;
 
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -16,7 +16,7 @@ public class BiddingsReducer extends Reducer<Text, BiddingsWritable, Text, Biddi
         for(BiddingsWritable bidding: values) {
             long visits = sum.getVisits().get() + bidding.getVisits().get();
             sum.setVisits(new LongWritable(visits));
-            long spends = sum.getSpends().get() + bidding.getVisits().get();
+            long spends = sum.getSpends().get() + bidding.getSpends().get();
             sum.setSpends(new LongWritable(spends));
         }
         context.write(key, sum);

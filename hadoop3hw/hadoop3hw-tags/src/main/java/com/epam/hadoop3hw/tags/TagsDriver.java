@@ -6,7 +6,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
@@ -15,12 +14,12 @@ import org.apache.hadoop.util.ToolRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Driver extends Configured implements Tool {
+public class TagsDriver extends Configured implements Tool {
 
-  private static final Logger LOG = LoggerFactory.getLogger(Driver.class);
+  private static final Logger LOG = LoggerFactory.getLogger(TagsDriver.class);
 
   public static void main(String[] args) throws Exception {
-    int code = ToolRunner.run(new Driver(), args);
+    int code = ToolRunner.run(new TagsDriver(), args);
     System.exit(code);
   }
 
@@ -32,7 +31,7 @@ public class Driver extends Configured implements Tool {
     conf.set(TextOutputFormat.SEPERATOR, ",");
 
     Job job = Job.getInstance(conf, "Hadoop HW3 Tags");
-    job.setJarByClass(Driver.class);
+    job.setJarByClass(TagsDriver.class);
     job.setMapperClass(TagsMapper.class);
     job.setCombinerClass(TagsReducer.class);
     job.setReducerClass(TagsReducer.class);
