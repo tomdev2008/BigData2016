@@ -3,7 +3,9 @@ package com.epam.hadoop3hw.biddings;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.compress.SnappyCodec;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -47,9 +49,9 @@ public class BiddingDriver extends Configured implements Tool {
 
         job.setOutputFormatClass(SequenceFileOutputFormat.class);
 
-//        FileOutputFormat.setCompressOutput(job, true);
-//        FileOutputFormat.setOutputCompressorClass(job, SnappyCodec.class);
-//        SequenceFileOutputFormat.setOutputCompressionType(job, SequenceFile.CompressionType.BLOCK);
+        FileOutputFormat.setCompressOutput(job, true);
+        FileOutputFormat.setOutputCompressorClass(job, SnappyCodec.class);
+        SequenceFileOutputFormat.setOutputCompressionType(job, SequenceFile.CompressionType.BLOCK);
 
         return job.waitForCompletion(true) ? 0 : 1;
     }
