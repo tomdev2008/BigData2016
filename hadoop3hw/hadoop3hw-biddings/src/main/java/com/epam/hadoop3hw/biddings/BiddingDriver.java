@@ -54,7 +54,7 @@ public class BiddingDriver extends Configured implements Tool {
         SequenceFileOutputFormat.setOutputCompressionType(job, SequenceFile.CompressionType.BLOCK);
 
         boolean success = job.waitForCompletion(true);
-        if(success) {
+        if (success) {
             job.getCounters()
                     .getGroup(Constants.BROWSER_GROUP)
                     .forEach(counter -> System.out.println("browser " + counter.getName() + " count " + counter.getValue()));
