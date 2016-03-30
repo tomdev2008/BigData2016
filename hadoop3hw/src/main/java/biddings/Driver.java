@@ -6,10 +6,13 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.compress.SnappyCodec;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
@@ -32,7 +35,6 @@ public class Driver extends Configured implements Tool {
         LOG.info("Start!");
 
         Configuration conf = getConf();
-//        conf.set(TextOutputFormat.SEPERATOR, ",");
 
         Job job = Job.getInstance(conf, "Hadoop HW3 Biddings");
         job.setJarByClass(Driver.class);
@@ -42,14 +44,16 @@ public class Driver extends Configured implements Tool {
 
         job.setMapOutputKeyClass(Text.class);
         job.setMapOutputValueClass(LongWritable.class);
-//
-//    job.setOutputKeyClass(Text.class);
-//    job.setOutputValueClass(LogResultWritable.class);
-
-//    job.setOutputFormatClass(SequenceFileOutputFormat.class);
 
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
+
+        job.setOutputFormatClass(SequenceFileOutputFormat.class);
+
+        FileOutputFormat.setCompressOutput(job, true);
+        FileOutputFormat.setOutputCompressorClass(job, SnappyCodec.class);
+        SequenceFileOutputFormat.setOutputCompressionType(job, SequenceFile.CompressionType.BLOCK);
+
         return job.waitForCompletion(true) ? 0 : 1;
     }
 }

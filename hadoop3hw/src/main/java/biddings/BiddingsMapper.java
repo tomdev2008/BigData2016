@@ -1,5 +1,6 @@
 package biddings;
 
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -13,16 +14,26 @@ import java.io.IOException;
  */
 public class BiddingsMapper extends Mapper<LongWritable, Text, Text, BiddingsWritable> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(Driver.class);
-    public static final int LINE_ITEMS_COUNT = 22;
+    private static final Logger LOG = LoggerFactory.getLogger(BiddingsMapper.class);
+
+    private Parser parser = new Parser();
+
+    private Text ip = new Text();
+    private BiddingsWritable biddings = new BiddingsWritable();
+
+    public BiddingsMapper() {
+        biddings.getVisits().set(1);
+    }
 
     @Override
     protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-        String[] lineItems = value.toString().split("\t");
-        if(lineItems.length != LINE_ITEMS_COUNT) {
-            LOG.warn("Wring numbers of items in line " + value);
+        parser.parse(value.toString());
+        if(parser.isFailed()) {
+            LOG.warn("Could not parse line.");
+            return;
         }
-
-
+        ip.set(parser.getIp());
+        biddings.getSpends().set(parser.getBidings());
+        context.write(ip, biddings);
     }
 }

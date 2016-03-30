@@ -1,5 +1,6 @@
 package biddings;
 
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Writable;
 
@@ -14,11 +15,6 @@ public class BiddingsWritable implements Writable {
     private LongWritable spends = new LongWritable();
 
     public BiddingsWritable() {
-    }
-
-    public BiddingsWritable(LongWritable visits, LongWritable spends) {
-        this.visits = visits;
-        this.spends = spends;
     }
 
     public void write(DataOutput dataOutput) throws IOException {
