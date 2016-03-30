@@ -13,7 +13,6 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.slf4j.Logger;
@@ -38,21 +37,24 @@ public class Driver extends Configured implements Tool {
 
         Job job = Job.getInstance(conf, "Hadoop HW3 Biddings");
         job.setJarByClass(Driver.class);
-        job.setMapperClass(TagsMapper.class);
-        job.setCombinerClass(TagsReducer.class);
-        job.setReducerClass(TagsReducer.class);
+        job.setMapperClass(BiddingsMapper.class);
+        job.setCombinerClass(BiddingsReducer.class);
+        job.setReducerClass(BiddingsReducer.class);
 
         job.setMapOutputKeyClass(Text.class);
-        job.setMapOutputValueClass(LongWritable.class);
+        job.setMapOutputValueClass(BiddingsWritable.class);
+
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(BiddingsWritable.class);
 
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
 
         job.setOutputFormatClass(SequenceFileOutputFormat.class);
 
-        FileOutputFormat.setCompressOutput(job, true);
-        FileOutputFormat.setOutputCompressorClass(job, SnappyCodec.class);
-        SequenceFileOutputFormat.setOutputCompressionType(job, SequenceFile.CompressionType.BLOCK);
+//        FileOutputFormat.setCompressOutput(job, true);
+//        FileOutputFormat.setOutputCompressorClass(job, SnappyCodec.class);
+//        SequenceFileOutputFormat.setOutputCompressionType(job, SequenceFile.CompressionType.BLOCK);
 
         return job.waitForCompletion(true) ? 0 : 1;
     }

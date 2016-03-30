@@ -25,7 +25,7 @@ public class Parser {
             LOG.warn("Wring numbers of items in line " + line);
             return;
         }
-        String ip = lineItems[IP_POSITION];
+        ip = lineItems[IP_POSITION];
         if(ip == null) {
             LOG.warn("ip is nul in the line {}", line);
             return;
