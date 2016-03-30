@@ -44,7 +44,7 @@ public class BiddingDriver extends Configured implements Tool {
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(BiddingsWritable.class);
 
-        FileInputFormat.addInputPath(job, new Path(args[0]));
+        FileInputFormat.addInputPaths(job, args[0]);
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
 
         job.setOutputFormatClass(SequenceFileOutputFormat.class);
