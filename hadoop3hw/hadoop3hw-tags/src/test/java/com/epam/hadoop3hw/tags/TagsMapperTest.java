@@ -8,6 +8,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.net.URISyntaxException;
 import java.util.List;
 
 import static org.hamcrest.CoreMatchers.is;
@@ -17,15 +18,16 @@ public class TagsMapperTest {
     MapDriver<LongWritable, Text, Text, LongWritable> mapDriver;
 
     @Before
-    public void before() {
+    public void before() throws URISyntaxException {
         TagsMapper mapper = new TagsMapper();
         mapDriver = MapDriver.newMapDriver(mapper);
+        mapDriver.addCacheFile(TagsMapperTest.class.getResource("local_cache.txt").toURI());
     }
 
     @Test
     public void testMap() throws Exception {
         //given
-        mapDriver.withInput(new LongWritable(10), new Text(String.format(TagsData.TEMPLATE, "one two two")));
+        mapDriver.withInput(new LongWritable(10), new Text(String.format(TagsData.BIDDINGS_TEMPLATE, "282163091263")));
 
         //when
         List<Pair<Text, LongWritable>> result = mapDriver.run();

@@ -11,7 +11,7 @@ import java.io.IOException;
 /**
  * Created by root on 3/30/16.
  */
-public class BiddingsMapper extends Mapper<LongWritable, Text, Text, BiddingsWritable> {
+public class BiddingsMapper extends Mapper<LongWritable, Text, CompositeKey, > {
 
     private static final Logger LOG = LoggerFactory.getLogger(BiddingsMapper.class);
 
@@ -31,8 +31,6 @@ public class BiddingsMapper extends Mapper<LongWritable, Text, Text, BiddingsWri
             LOG.warn("Could not parse line.");
             return;
         }
-
-        context.getCounter(Constants.BROWSER_GROUP, parser.getBrowser()).increment(1);
 
         ip.set(parser.getIp());
         biddings.getSpends().set(parser.getBidings());

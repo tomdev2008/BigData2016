@@ -4,6 +4,8 @@ import eu.bitwalker.useragentutils.UserAgent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Date;
+
 /**
  * Created by Vitaliy on 3/30/2016.
  */
@@ -11,13 +13,13 @@ public class Parser {
 
     private static final Logger LOG = LoggerFactory.getLogger(Parser.class);
     public static final int LINE_ITEMS_COUNT = 22;
-    public static final int USER_AGENT_POSITION = 2;
-    public static final int IP_POSITION = 4;
-    public static final int BIDINGS_POSITION = 18;
+    public static final int TIMESTAMP_POSITION = 1;
+    public static final int I_PIN_YOU_POSITION = 2;
+    public static final int STREAM_ID_POSITION = 21;
 
-    private String ip;
-    private Long bidings;
-    private String browser;
+    private Long timestamp;
+    private String iPinyouId;
+    private Integer streamId;
 
     private boolean success = false;
 
@@ -29,20 +31,27 @@ public class Parser {
             return;
         }
 
-        UserAgent userAgent = new UserAgent(lineItems[USER_AGENT_POSITION]);
-        browser = userAgent.getBrowser().getGroup().name();
-
-        ip = lineItems[IP_POSITION];
-        if(ip == null) {
-            LOG.warn("ip is nul in the line {}", line);
+        String timestampItem = null;
+        try {
+            timestampItem = lineItems[TIMESTAMP_POSITION];
+            timestamp = Long.parseLong(timestampItem);
+        } catch (NumberFormatException e) {
+            LOG.warn("Could not parse timestamp {} in line {}", timestampItem, line);
             return;
         }
-        String bidingsItem = null;
+
+        iPinyouId = lineItems[I_PIN_YOU_POSITION];
+        if(iPinyouId == null) {
+            LOG.warn("iPinyouId is null in the line {}", line);
+            return;
+        }
+
+        String streamIdItem = null;
         try {
-            bidingsItem = lineItems[BIDINGS_POSITION];
-            bidings = Long.parseLong(bidingsItem);
+            streamIdItem = lineItems[STREAM_ID_POSITION];
+            streamId = Integer.parseInt(streamIdItem);
         } catch (NumberFormatException e) {
-            LOG.warn("Could not parse biding {} in line {}", bidingsItem, line);
+            LOG.warn("Could not parse biding {} in line {}", streamIdItem, line);
             return;
         }
         success = true;
@@ -53,22 +62,26 @@ public class Parser {
     }
 
     private void init() {
-        ip = null;
-        bidings = null;
-        browser = null;
+        timestamp = null;
+        iPinyouId = null;
+        streamId = null;
 
         success = false;
     }
 
-    public String getIp() {
-        return ip;
+    public Long getTimestamp() {
+        return timestamp;
     }
 
-    public Long getBidings() {
-        return bidings;
+    public String getiPinyouId() {
+        return iPinyouId;
     }
 
-    public String getBrowser() {
-        return browser;
+    public Integer getStreamId() {
+        return streamId;
+    }
+
+    public boolean isSuccess() {
+        return success;
     }
 }

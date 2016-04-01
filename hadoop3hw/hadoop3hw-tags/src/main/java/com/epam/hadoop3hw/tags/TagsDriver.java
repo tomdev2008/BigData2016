@@ -14,6 +14,8 @@ import org.apache.hadoop.util.ToolRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
+
 public class TagsDriver extends Configured implements Tool {
 
   private static final Logger LOG = LoggerFactory.getLogger(TagsDriver.class);
@@ -23,6 +25,15 @@ public class TagsDriver extends Configured implements Tool {
     System.exit(code);
   }
 
+  /**
+   * Run
+   *
+   * @param args [0] - path to dataset
+   * @param args [1] - path to dictionary
+   * @param args [3] - path to result
+   * @return
+   * @throws Exception
+   */
   public int run(String[] args) throws Exception {
     LOG.info("Start!");
     System.out.println("Start!!");
@@ -38,14 +49,11 @@ public class TagsDriver extends Configured implements Tool {
 
     job.setMapOutputKeyClass(Text.class);
     job.setMapOutputValueClass(LongWritable.class);
-//
-//    job.setOutputKeyClass(Text.class);
-//    job.setOutputValueClass(LogResultWritable.class);
 
-//    job.setOutputFormatClass(SequenceFileOutputFormat.class);
+    job.addCacheFile(new URI(args[1]));
 
     FileInputFormat.addInputPath(job, new Path(args[0]));
-    FileOutputFormat.setOutputPath(job, new Path(args[1]));
+    FileOutputFormat.setOutputPath(job, new Path(args[2]));
     return job.waitForCompletion(true) ? 0 : 1;
   }
 }
