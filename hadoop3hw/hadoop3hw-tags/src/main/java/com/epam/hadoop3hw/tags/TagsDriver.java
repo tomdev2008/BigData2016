@@ -52,7 +52,7 @@ public class TagsDriver extends Configured implements Tool {
 
     job.addCacheFile(new URI(args[1]));
 
-    FileInputFormat.addInputPath(job, new Path(args[0]));
+    FileInputFormat.addInputPaths(job, args[0]);
     FileOutputFormat.setOutputPath(job, new Path(args[2]));
     return job.waitForCompletion(true) ? 0 : 1;
   }

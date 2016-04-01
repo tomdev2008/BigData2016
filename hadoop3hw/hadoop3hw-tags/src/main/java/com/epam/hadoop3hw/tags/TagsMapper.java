@@ -18,9 +18,6 @@ import java.util.*;
 public class TagsMapper extends Mapper<LongWritable, Text, Text, LongWritable> {
 
     private static final Logger LOG = LoggerFactory.getLogger(TagsMapper.class);
-    public static final String ITEMS_SEPARATOR = "\t";
-    public static final int TAGS_POSITION = 1;
-    public static final String TAGS_SEPARATOR = " ";
 
     private Text tag = new Text();
     private LongWritable tagsCount = new LongWritable(1);
@@ -50,7 +47,12 @@ public class TagsMapper extends Mapper<LongWritable, Text, Text, LongWritable> {
             LOG.warn("Could not parse line {}", line);
         }
         String userId = biddingParser.getUserTags();
-        for(String tagString: tags.get(userId)) {
+        List<String> tags = this.tags.get(userId);
+        if(tags == null) {
+            LOG.warn("Could not find tags by User Id {}", userId);
+            return;
+        }
+        for(String tagString: tags) {
             tag.set(tagString);
             context.write(tag, tagsCount);
         }
