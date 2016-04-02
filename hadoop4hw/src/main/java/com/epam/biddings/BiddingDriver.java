@@ -2,18 +2,19 @@ package com.epam.biddings;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.SequenceFile;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.compress.SnappyCodec;
+import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.OutputStream;
+import java.io.PrintWriter;
 
 /**
  * Created by root on 3/30/16.
@@ -32,27 +33,48 @@ public class BiddingDriver extends Configured implements Tool {
 
         Configuration conf = getConf();
 
-        Job job = Job.getInstance(conf, "Hadoop HW3 Biddings");
+        Job job = Job.getInstance(conf, "Hadoop HW4");
         job.setJarByClass(BiddingDriver.class);
-        job.setMapperClass(BiddingsMapper.class);
-        job.setCombinerClass(BiddingsReducer.class);
-        job.setReducerClass(BiddingsReducer.class);
 
-        job.setMapOutputKeyClass(Text.class);
-        job.setMapOutputValueClass(BiddingsWritable.class);
+        job.setNumReduceTasks(Integer.parseInt(args[3]));
+
+        job.setPartitionerClass(BiddingsPartitioner.class);
+        job.setGroupingComparatorClass(BiddingsGroupingComparator.class);
+
+        job.setMapOutputKeyClass(CompositeKey.class);
+        job.setMapOutputValueClass(Text.class);
 
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(BiddingsWritable.class);
+        job.setOutputValueClass(NullWritable.class);
 
         FileInputFormat.addInputPaths(job, args[0]);
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
 
-        job.setOutputFormatClass(SequenceFileOutputFormat.class);
+        job.setMapperClass(BiddingsMapper.class);
+        job.setReducerClass(BiddingsReducer.class);
 
-        FileOutputFormat.setCompressOutput(job, true);
-        FileOutputFormat.setOutputCompressorClass(job, SnappyCodec.class);
-        SequenceFileOutputFormat.setOutputCompressionType(job, SequenceFile.CompressionType.BLOCK);
+        boolean jobResult = job.waitForCompletion(true);
+        if(jobResult) {
+            final Text maxiPinYouId = new Text();
+            final LongWritable maxValue = new LongWritable();
+            job.getCounters()
+                    .getGroup(Constants.MAX_I_PIN_YOU_ID_GROUP)
+                    .forEach(counter -> {
+                        if(maxValue.get() == 0 || maxValue.get() < counter.getValue()) {
+                            maxiPinYouId.set(counter.getName());
+                            maxValue.set(counter.getValue());
+                        }
+                    });
+            LOG.info("MAX {} {}", maxiPinYouId, maxValue);
+            try (
+                    FileSystem fileSystem = FileSystem.get(conf);
+                    OutputStream outputStream= fileSystem.create(new Path(args[1] + "/max.txt"));
+                    PrintWriter printWriter = new PrintWriter(outputStream);
+            ) {
+                printWriter.println(String.format("%s\t%s", maxiPinYouId, maxValue));
+            }
+        }
 
-        return job.waitForCompletion(true) ? 0 : 1;
+        return jobResult ? 0 : 1;
     }
 }

@@ -2,6 +2,7 @@ package com.epam.biddings;
 
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 
 import java.io.DataInput;
@@ -13,8 +14,9 @@ import java.io.IOException;
  */
 public class CompositeKey implements WritableComparable {
 
-    private LongWritable timestamp;
-    private Text iPinyouId;
+    private Text iPinyouId = new Text();
+    private LongWritable timestamp = new LongWritable();
+    private LongWritable streamId = new LongWritable();
 
     public int compareTo(Object o) {
         CompositeKey other = (CompositeKey) o;
@@ -26,13 +28,23 @@ public class CompositeKey implements WritableComparable {
     }
 
     public void write(DataOutput out) throws IOException {
-        timestamp.write(out);
         iPinyouId.write(out);
+        timestamp.write(out);
+        streamId.write(out);
     }
 
     public void readFields(DataInput in) throws IOException {
-        timestamp.readFields(in);
         iPinyouId.readFields(in);
+        timestamp.readFields(in);
+        streamId.readFields(in);
+    }
+
+    public Text getiPinyouId() {
+        return iPinyouId;
+    }
+
+    public void setiPinyouId(Text iPinyouId) {
+        this.iPinyouId = iPinyouId;
     }
 
     public LongWritable getTimestamp() {
@@ -43,11 +55,11 @@ public class CompositeKey implements WritableComparable {
         this.timestamp = timestamp;
     }
 
-    public Text getiPinyouId() {
-        return iPinyouId;
+    public LongWritable getStreamId() {
+        return streamId;
     }
 
-    public void setiPinyouId(Text iPinyouId) {
-        this.iPinyouId = iPinyouId;
+    public void setStreamId(LongWritable streamId) {
+        this.streamId = streamId;
     }
 }
