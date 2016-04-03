@@ -36,7 +36,7 @@ public class BiddingDriver extends Configured implements Tool {
         Job job = Job.getInstance(conf, "Hadoop HW4");
         job.setJarByClass(BiddingDriver.class);
 
-        job.setNumReduceTasks(Integer.parseInt(args[3]));
+        job.setNumReduceTasks(Integer.parseInt(args[2]));
 
         job.setPartitionerClass(BiddingsPartitioner.class);
         job.setGroupingComparatorClass(BiddingsGroupingComparator.class);
