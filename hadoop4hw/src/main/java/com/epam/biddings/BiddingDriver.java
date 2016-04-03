@@ -8,6 +8,8 @@ import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.partition.InputSampler;
+import org.apache.hadoop.mapreduce.lib.partition.TotalOrderPartitioner;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.slf4j.Logger;
@@ -52,6 +54,13 @@ public class BiddingDriver extends Configured implements Tool {
 
         job.setMapperClass(BiddingsMapper.class);
         job.setReducerClass(BiddingsReducer.class);
+
+        job.setInputFormatClass(BiddingsInputFormat.class);
+
+        InputSampler.RandomSampler<Text, Text> randomSampler = new InputSampler.RandomSampler<>(0.7, 100);
+        InputSampler.writePartitionFile(job, randomSampler);
+
+        job.setPartitionerClass(TotalOrderPartitioner.class);
 
         boolean jobResult = job.waitForCompletion(true);
         if(jobResult) {

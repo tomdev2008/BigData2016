@@ -27,7 +27,7 @@ public class Parser {
         init();
         String[] lineItems = line.split("\t");
         if(lineItems.length != LINE_ITEMS_COUNT) {
-            LOG.warn("Wring numbers of items in line " + line);
+            LOG.warn("Wrong numbers of items in line " + line);
             return;
         }
 
