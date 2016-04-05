@@ -40,6 +40,7 @@ public class BiddingDriver extends Configured implements Tool {
 
         job.setPartitionerClass(BiddingsPartitioner.class);
         job.setGroupingComparatorClass(BiddingsGroupingComparator.class);
+        job.setSortComparatorClass(SortComparator.class);
 
         job.setMapOutputKeyClass(CompositeKey.class);
         job.setMapOutputValueClass(Text.class);
