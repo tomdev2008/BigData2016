@@ -33,7 +33,7 @@ public class BiddingDriver extends Configured implements Tool {
 
         Configuration conf = getConf();
 
-        Job job = Job.getInstance(conf, "Hadoop HW4");
+        Job job = Job.getInstance(conf, "Hadoop HW 4");
         job.setJarByClass(BiddingDriver.class);
 
         job.setNumReduceTasks(Integer.parseInt(args[2]));
