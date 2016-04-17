@@ -1,0 +1,55 @@
+
+---- create table ----
+
+create external table stream_test (bid_id string, time string, i_pin_you_id string, user_agent string, ip string, region int, city int, add_exchange int, domain string, url string, anonimous_url_id string, ad_slot_id string, ad_slot_width int, ad_slot_height int, ad_slot_visibility int, ad_slot_format int, paying_price int, creative_id string, bidding_price int, advertiser_id int, user_tags bigint, stream_id int) ROW FORMAT DELIMITED FIELDS TERMINATED BY "\t" STORED AS TEXTFILE LOCATION '/tmp/hw/files_test';
+
+
+---- Reques ----
+
+with tmp as (
+  SELECT 
+    cast(from_unixtime(unix_timestamp(s.time,'yyyyMMddHHmmssSSS'), 'yyyy-MM-dd') AS date) AS date, 
+    s.i_pin_you_id as id 
+  FROM stream s 
+    where s.stream_id = 11
+    group by from_unixtime(unix_timestamp(s.time, 'yyyyMMddHHmmssSSS'), 'yyyy-MM-dd'), s.i_pin_you_id),
+        
+tmp_new as (select tf.date as date, tf.id as id, count(*) over (partition by tf.id order by tf.date rows UNBOUNDED PRECEDING) as first from tmp tf),
+
+tmp_cr as (select tf.date as date, tf.id as id, count(*) over (partition by tf.id order by tf.date rows UNBOUNDED PRECEDING) as first from tmp tf),
+
+tmp_chr as (select tf.date as date, tf.id as id, count(*) over (partition by tf.id order by tf.date rows UNBOUNDED PRECEDING) as first from tmp tf),
+
+tmp_ar as (select tf.date as date, tf.id as id, count(*) over (partition by tf.id order by tf.date rows 3 PRECEDING) as first from tmp tf),
+
+tmp_arr as (select tf.date as date, tf.id as id, count(*) over (partition by tf.id order by tf.date rows 3 PRECEDING) as first from tmp tf),
+
+tmp_l as (select tf.date as date, tf.id as id, count(*) over (partition by tf.id order by tf.date rows between 3 PRECEDING and 3 PRECEDING) as first from tmp tf)
+
+select t.date, sum(new.c), sum(cr.c), sum(chr.c), sum(ar.c), sum(arr.c) from tmp t 
+
+left join (
+  select new.date as date, new.id as id, 1 as c from tmp_new new where new.first = 1
+) new on (new.date = t.date and new.id = t.id)
+
+left join (
+  select tf.date as date, tf.id as id, 1 as c from tmp_cr tf where tf.first = 2
+) cr on (cr.date = t.date and cr.id = t.id)
+
+left join (
+  select tf.date as date, tf.id as id, 1 as c from tmp_chr tf where tf.first = 2
+) chr on (chr.date = t.date and chr.id = t.id)
+
+left join (
+  select tf.date as date, tf.id as id, 1 as c from tmp_ar tf where tf.first = 1
+) ar on (ar.date = t.date and ar.id = t.id)
+
+left join (
+  select tf.date as date, tf.id as id, 1 as c from tmp_arr tf where tf.first <= 2
+) arr on (arr.date = t.date and arr.id = t.id)
+
+left join (
+  select tf.date as date, tf.id as id, 1 as c from tmp_l tf where tf.first <= 1
+) l on (l.date = t.date and l.id = t.id)
+
+group by t.date
