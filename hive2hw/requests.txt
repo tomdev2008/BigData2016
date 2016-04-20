@@ -1,29 +1,8 @@
 
--- -- create table -- --
 
-create external table stream_test (bid_id string, time string, i_pin_you_id string, user_agent string, ip string, region int, city int, add_exchange int, domain string, url string, anonimous_url_id string, ad_slot_id string, ad_slot_width int, ad_slot_height int, ad_slot_visibility int, ad_slot_format int, paying_price int, creative_id string, bidding_price int, advertiser_id int, user_tags bigint, stream_id int) ROW FORMAT DELIMITED FIELDS TERMINATED BY "\t" STORED AS TEXTFILE LOCATION '/tmp/hw/files_test';
-
+-- Here is updated 'Customers by Segments report' request with device filter
 
 
-
--- -- Requests -- --
-
-
--- Build Bid Flow report
-
-
-select 
-  cast(from_unixtime(unix_timestamp(s.time, 'yyyyMMddHHmmssSSS'), 'yyyy-MM-dd') as date)  as date, 
-  sum(s.paying_price) as paying_price, 
-  sum(bidding_price) as bidding_price 
-  from stream s 
-  where s.stream_id = 1
-  group by cast(from_unixtime(unix_timestamp(s.time, 'yyyyMMddHHmmssSSS'), 'yyyy-MM-dd') as date)
-
-
-
-
--- Build Customers by Segments report
 
 
 with tmp as (
@@ -31,7 +10,7 @@ with tmp as (
     cast(from_unixtime(unix_timestamp(s.time,'yyyyMMddHHmmssSSS'), 'yyyy-MM-dd') AS date) AS date, 
     s.i_pin_you_id as id 
   FROM stream s 
-    where s.stream_id = 11
+    where s.stream_id = 11 and dev(s.user_agent) = '${device=Computer,Computer|Tablet|Mobile}'
     group by from_unixtime(unix_timestamp(s.time, 'yyyyMMddHHmmssSSS'), 'yyyy-MM-dd'), s.i_pin_you_id),
         
 tmp_new as (select tf.date as date, tf.id as id, count(*) over (partition by tf.id order by tf.date rows UNBOUNDED PRECEDING) as first from tmp tf),
@@ -73,3 +52,12 @@ left join (
 ) l on (l.date = t.date and l.id = t.id)
 
 group by t.date
+
+
+
+
+
+-- here is create index request
+
+CREATE INDEX stream_time_index ON TABLE stream (stream_id) AS 'COMPACT' WITH DEFERRED REBUILD;
+ALTER INDEX stream_time_index ON stream REBUILD;
