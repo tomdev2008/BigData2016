@@ -1,0 +1,37 @@
+Using username "root".
+Last login: Mon Apr 18 10:16:01 2016 from 10.6.60.27
+[root@quickstart ~]# cd hive2hw/
+[root@quickstart hive2hw]# ls
+hive2hwUdf2.jar
+[root@quickstart hive2hw]# rm /opt/local/hive/lib/hive2hwUdf.jar
+rm: remove regular file `/opt/local/hive/lib/hive2hwUdf.jar'? y
+[root@quickstart hive2hw]# cp hive2hwUdf2.jar /opt/local/hive/lib
+[root@quickstart hive2hw]# hdfs dfs -put hive2hwUdf2.jar /usr/hive/udf
+put: `/usr/hive/udf': No such file or directory
+[root@quickstart hive2hw]# hdfs dfs -put hive2hwUdf2.jar /user/hive/udf
+[root@quickstart hive2hw]# hive
+Java HotSpot(TM) 64-Bit Server VM warning: ignoring option MaxPermSize=512M; support was removed in 8.0
+Java HotSpot(TM) 64-Bit Server VM warning: Using incremental CMS is deprecated and will likely be removed in a future release
+16/04/18 10:51:32 WARN mapreduce.TableMapReduceUtil: The hbase-prefix-tree module jar containing PrefixTreeCodec is not present.  Continuing without it.
+Java HotSpot(TM) 64-Bit Server VM warning: ignoring option MaxPermSize=512M; support was removed in 8.0
+
+Logging initialized using configuration in jar:file:/usr/lib/hive/lib/hive-common-1.1.0-cdh5.7.0.jar!/hive-log4j.properties
+WARNING: Hive CLI is deprecated and migration to Beeline is recommended.
+hive> CREATE FUNCTION ua AS 'com.epam.UaUDTF' USING JAR 'hdfs:////user/hive/udf';
+converting to local hdfs:////user/hive/udf
+Added [/tmp/3f8ccea1-c5ad-4d32-8260-20fabfbea6e4_resources/udf] to class path
+Added resources: [hdfs:////user/hive/udf]
+FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.FunctionTask. AlreadyExistsException(message:Function ua already exists)
+hive> CREATE FUNCTION device AS 'com.epam.UaUDTF' USING JAR 'hdfs:////user/hive/udf';
+converting to local hdfs:////user/hive/udf
+Added [/tmp/3f8ccea1-c5ad-4d32-8260-20fabfbea6e4_resources/udf] to class path
+Added resources: [hdfs:////user/hive/udf]
+OK
+Time taken: 0.083 seconds
+hive> select device()
+
+
+
+ select device(s.user_agent) from stream s limit 10;
+
+ http://www.cloudera.com/documentation/enterprise/5-5-x/topics/cm_mc_hive_udf.html

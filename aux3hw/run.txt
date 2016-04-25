@@ -1,0 +1,30 @@
+
+To start Kafka server
+
+cd apps/kafka
+bin/kafka-server-start.sh config/server.properties
+
+
+
+
+To start Kafka producer
+
+cd apps/kafka
+bin/kafka-console-producer.sh --broker-list 10.23.15.123:9092 --topic test
+
+
+
+
+To start Flume agent
+
+cd apps/flume
+bin/flume-ng agent --conf conf --conf-file conf/conf.properties --name flume_hdfs -Dflume.root.logger=INFO,console
+
+
+
+
+
+Creating table
+
+create external table stream_logs (bid_id string, time string, i_pin_you_id string, user_agent string, ip string, region int, city int, add_exchange int, domain string, url string, anonimous_url_id string, ad_slot_id string, ad_slot_width int, ad_slot_height int, ad_slot_visibility int, ad_slot_format int, paying_price int, creative_id string, bidding_price int, advertiser_id int, user_tags bigint, stream_id int, tags string) clustered by (bid_id) into 5 buckets STORED AS ORC;
+
