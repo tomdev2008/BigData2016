@@ -1,0 +1,5 @@
+Id	City	State Id	Population	Area	Density	Latitude	Longitude
+0	unknown	0	0	0	0	0	0
+86	Fort Wayne	27	258522	286.5	885	41.0882	-85.1439
+87	Chandler	253	254276	166.8	1415	33.2829	-111.8549
+88	St. Petersburg	396	253693	159.9	1531	27.762	-82.6441
