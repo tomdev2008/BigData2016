@@ -1,4 +1,9 @@
-import org.apache.spark.sql.types.{StructField, StringType, IntegerType, StructType}
+import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Date
+
+import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrameReader, SQLContext}
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -37,7 +42,7 @@ object SparkMain3 {
     // - Latitude
     // - Longitude
     val city = createCommonDFReader(sqlContext, true)
-      .load("D:\\projects\\BDCC\\BigData2016\\spark1hw4\\city.us.txt")
+      .load("D:\\zinchenko\\BDCC\\training_2016\\BigData2016\\spark1hw4\\src\\main\\resources\\city.us.txt")
     city.registerTempTable("city")
     city.printSchema()
 
@@ -51,7 +56,7 @@ object SparkMain3 {
 
     val tags = createCommonDFReader(sqlContext, false)
       .schema(keywordsSchema)
-      .load("D:\\projects\\BDCC\\BigData2016\\spark1hw4\\tags.txt")
+      .load("D:\\zinchenko\\BDCC\\training_2016\\BigData2016\\spark1hw4\\src\\main\\resources\\tags.txt")
     tags.registerTempTable("tags")
     tags.printSchema()
 
@@ -81,12 +86,16 @@ object SparkMain3 {
 
     val stream = createCommonDFReader(sqlContext, false)
       .schema(streamSchema)
-      .load("D:\\projects\\BDCC\\BigData2016\\spark1hw4\\stream.txt")
+      .load("D:\\zinchenko\\BDCC\\training_2016\\BigData2016\\spark1hw4\\src\\main\\resources\\stream.txt")
     stream.registerTempTable("stream")
     stream.printSchema()
 
+    sqlContext.udf.register("sl", (s: String) => s.length)
+
+    sqlContext.udf.register("toDate", (timestamp: String) => LocalDate.parse(timestamp, DateTimeFormatter.ofPattern("uuuuMMddHHmmssnnn")))
+
     sqlContext.sql(
-      "select s.userTags, s.timestamp, s.city from stream s"
+      "select toDate(s.timestamp), s.city from stream s"
     ).foreach(println)
 
     println("--------------")
