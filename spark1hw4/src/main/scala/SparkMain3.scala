@@ -3,7 +3,9 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Date
 
-import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
+import org.apache.spark.sql.functions.{udf, array, lit}
+
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.{DataFrameReader, SQLContext}
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -32,6 +34,10 @@ object SparkMain3 {
 
     val sqlContext = new SQLContext(sc)
 
+    val f = (s: String) => 1
+    val myConcat = udf(f)
+    sqlContext.udf.register("f", f)
+
     // schema:
     // - Id
     // - City
@@ -42,7 +48,8 @@ object SparkMain3 {
     // - Latitude
     // - Longitude
     val city = createCommonDFReader(sqlContext, true)
-      .load("D:\\zinchenko\\BDCC\\training_2016\\BigData2016\\spark1hw4\\src\\main\\resources\\city.us.txt")
+//    getClass.getResource("/my_model.ser.gz").getPath()
+      .load("D:\\projects\\BDCC\\BigData2016\\spark1hw4\\src\\main\\resources\\city.us.txt")
     city.registerTempTable("city")
     city.printSchema()
 
@@ -56,7 +63,7 @@ object SparkMain3 {
 
     val tags = createCommonDFReader(sqlContext, false)
       .schema(keywordsSchema)
-      .load("D:\\zinchenko\\BDCC\\training_2016\\BigData2016\\spark1hw4\\src\\main\\resources\\tags.txt")
+      .load("D:\\projects\\BDCC\\BigData2016\\spark1hw4\\src\\main\\resources\\tags.txt")
     tags.registerTempTable("tags")
     tags.printSchema()
 
@@ -86,39 +93,45 @@ object SparkMain3 {
 
     val stream = createCommonDFReader(sqlContext, false)
       .schema(streamSchema)
-      .load("D:\\zinchenko\\BDCC\\training_2016\\BigData2016\\spark1hw4\\src\\main\\resources\\stream.txt")
+      .load("D:\\projects\\BDCC\\BigData2016\\spark1hw4\\src\\main\\resources\\stream.txt")
     stream.registerTempTable("stream")
     stream.printSchema()
 
     sqlContext.udf.register("sl", (s: String) => s.length)
 
-    sqlContext.udf.register("toDate", (timestamp: String) => LocalDate.parse(timestamp, DateTimeFormatter.ofPattern("uuuuMMddHHmmssnnn")))
+//    sqlContext.udf.register("toDate", (timestamp: String) => LocalDate.parse(timestamp, DateTimeFormatter.ofPattern("uuuuMMddHHmmssnnn")))
+//    sqlContext.udf.register("toDate", (timestamp: String) => {
+//      val format = new SimpleDateFormat("yyyyMMddHHmmssSSS")
+//      format.parse(timestamp)
+//    })
+
+
 
     sqlContext.sql(
-      "select toDate(s.timestamp), s.city from stream s"
+      "select f(s.timestamp), s.city from stream s"
     ).foreach(println)
 
     println("--------------")
 
-    sqlContext.sql(
-//      "select k.tags, k.tagId from keywords k"
-      "select * from tags"
-    ).foreach(println)
-
-    println("--------------")
-
-    sqlContext.sql(
-      "select c.Id, c.City from city c"
-    ).foreach(println)
-
-    println("-------------->")
-
-    sqlContext.sql(
-      "select c.City, s.timestamp, t.tags from stream s " +
-        "join tags t on s.userTags = t.tagId " +
-        "join city c on s.city = c.Id " +
-        ""
-    ).foreach(println)
+//    sqlContext.sql(
+////      "select k.tags, k.tagId from keywords k"
+//      "select * from tags"
+//    ).foreach(println)
+//
+//    println("--------------")
+//
+//    sqlContext.sql(
+//      "select c.Id, c.City from city c"
+//    ).foreach(println)
+//
+//    println("-------------->")
+//
+//    sqlContext.sql(
+//      "select c.City, s.timestamp, t.tags from stream s " +
+//        "join tags t on s.userTags = t.tagId " +
+//        "join city c on s.city = c.Id " +
+//        ""
+//    ).foreach(println)
 
   }
 
