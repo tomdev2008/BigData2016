@@ -12,8 +12,19 @@ import com.restfb.{Connection, Parameter, Version, DefaultFacebookClient}
  */
 object Test {
   def main(args: Array[String]) {
-    val format = new SimpleDateFormat("yyyyMMddHHmmssSSS")
-    println(format.parse("20130611232904865"))
+
+    val arr = Array("a sd", "q sd")
+
+    val r = arr.flatMap((s: String) => s.split(" ")).toSet
+
+    println(r)
+
+//    val format = new SimpleDateFormat("yyyyMMddHHmmssSSS")
+//    println(format.parse("20130611232904865"))
+
+
+
+
 
 
 //

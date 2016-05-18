@@ -1,13 +1,16 @@
+import java.io.Serializable
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Date
 
-import org.apache.spark.sql.functions.{udf, array, lit}
-
+import org.apache.spark.sql.functions.{array, collect_list, lit, udf}
+import org.apache.spark.sql.{DataFrameReader, Row, SQLContext, functions}
+import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.{DataFrameReader, SQLContext}
 import org.apache.spark.{SparkConf, SparkContext}
+
+import scala.collection.GenTraversableOnce
 
 /**
  * Created by Vitaliy on 5/14/2016.
@@ -34,7 +37,7 @@ object SparkMain3 {
 
     val sqlContext = new SQLContext(sc)
 
-    val f = (s: String) => 1
+    val f = (s: String) => s.substring(0, 8)//TODO return date
     val myConcat = udf(f)
     sqlContext.udf.register("f", f)
 
@@ -47,9 +50,8 @@ object SparkMain3 {
     // - Density
     // - Latitude
     // - Longitude
-    val city = createCommonDFReader(sqlContext, true)
-//    getClass.getResource("/my_model.ser.gz").getPath()
-      .load("D:\\projects\\BDCC\\BigData2016\\spark1hw4\\src\\main\\resources\\city.us.txt")
+    val cityPath = getClass.getResource("/city.us.txt").getPath()
+    val city = createCommonDFReader(sqlContext, true).load(cityPath)
     city.registerTempTable("city")
     city.printSchema()
 
@@ -61,9 +63,10 @@ object SparkMain3 {
       StructField("f3", StringType, true),
       StructField("url", StringType, true)))
 
+    val tagsPath = getClass.getResource("/tags.txt").getPath()
     val tags = createCommonDFReader(sqlContext, false)
       .schema(keywordsSchema)
-      .load("D:\\projects\\BDCC\\BigData2016\\spark1hw4\\src\\main\\resources\\tags.txt")
+      .load(tagsPath)
     tags.registerTempTable("tags")
     tags.printSchema()
 
@@ -91,9 +94,10 @@ object SparkMain3 {
       StructField("userTags", StringType, true),
       StructField("streamId", IntegerType, true)))
 
+    val streamPath = getClass.getResource("/stream.txt").getPath()
     val stream = createCommonDFReader(sqlContext, false)
       .schema(streamSchema)
-      .load("D:\\projects\\BDCC\\BigData2016\\spark1hw4\\src\\main\\resources\\stream.txt")
+      .load(streamPath)
     stream.registerTempTable("stream")
     stream.printSchema()
 
@@ -107,9 +111,9 @@ object SparkMain3 {
 
 
 
-    sqlContext.sql(
-      "select f(s.timestamp), s.city from stream s"
-    ).foreach(println)
+//    sqlContext.sql(
+//      "select f(s.timestamp), s.city from stream s"
+//    ).foreach(println)
 
     println("--------------")
 
@@ -123,15 +127,35 @@ object SparkMain3 {
 //    sqlContext.sql(
 //      "select c.Id, c.City from city c"
 //    ).foreach(println)
-//
-//    println("-------------->")
-//
-//    sqlContext.sql(
-//      "select c.City, s.timestamp, t.tags from stream s " +
-//        "join tags t on s.userTags = t.tagId " +
-//        "join city c on s.city = c.Id " +
-//        ""
-//    ).foreach(println)
+
+    println("-------------->")
+
+    val result = sqlContext.sql(
+      "select s.timestamp, c.City, t.tags from stream s " +
+        "join tags t on s.userTags = t.tagId " +
+        "join city c on s.city = c.Id " //+
+//        "group by f(s.timestamp), c.City"
+    )
+
+    result.foreach(println)
+
+    case class DateCityKey (localDate: LocalDate, city: String) extends Serializable
+
+    val keyValueRDD = result.map((row: Row) => {
+      val date = LocalDate.parse(row.getString(0), DateTimeFormatter.ofPattern("uuuuMMddHHmmssnnn"))
+      (DateCityKey(date, row.getString(1)), row.getString(2).split(" "))
+    })
+
+    keyValueRDD.foreach(println)
+
+    val grouperRdd = keyValueRDD.groupByKey()
+      .mapValues((strings: Iterable[Array[String]]) => {
+        strings.flatMap((strings: Array[String]) => strings).toSet
+      })
+
+    grouperRdd.foreach(tuple => {
+      println(tuple)
+    })
 
   }
 
