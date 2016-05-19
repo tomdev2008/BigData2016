@@ -1,11 +1,13 @@
 
 import java.text.SimpleDateFormat
+import java.time.{Instant, LocalDate}
 import java.util
+import java.util.Date
+import java.util.regex.{Matcher, Pattern}
 
 import scala.collection.JavaConversions._
-
 import com.restfb.types.Event
-import com.restfb.{Connection, Parameter, Version, DefaultFacebookClient}
+import com.restfb.{Connection, DefaultFacebookClient, Parameter, Version}
 
 /**
  * Created by Vitaliy on 5/15/2016.
@@ -13,37 +15,57 @@ import com.restfb.{Connection, Parameter, Version, DefaultFacebookClient}
 object Test {
   def main(args: Array[String]) {
 
-    val arr = Array("a sd", "q sd")
+//    Matcher matcher = Pattern.compile("\\b[^\\d\\W]+\\b").matcher(parsedText);
+//    val matcher = Pattern.compile("\\b[^\\d\\W]+\\b").matcher("asd asf");
+//    ma
 
-    val r = arr.flatMap((s: String) => s.split(" ")).toSet
+    val s = "asd w4t swregwg drsgb asd . 123"
+    val p = "\\b[^\\d\\W]+\\b".r
+    p.findAllIn(s).foreach(println)
 
-    println(r)
-
-//    val format = new SimpleDateFormat("yyyyMMddHHmmssSSS")
-//    println(format.parse("20130611232904865"))
-
-
-
-
-
-
+//    LocalDate.from(Instant.ofEpochMilli(new Date().getTime()))
 //
-//    val list = new util.ArrayList[String]()
-//    list.add("1")
-//    list.add("2")
-////    list.forEach()
+//    println("")
+
+    //search?q=copyright&type=event&center=40.6643,-73.9385&distance=1000
+
+//    val fc = new DefaultFacebookClient("EAACEdEose0cBAAaOZBfsoo5PLgONfZBYqP81NOFBdzEJdwiImExUnS2DhnJoQoC5hsG8PpcIcpsdtZBto8RA35nOxoTCmiuCkh4kgRUI70MqKmPezBUQih3uEsifHAiqZBz5urZAYaXgBvHoKJzc0wFm3Xr8vpvys3eDcKDrrZAAZDZD", Version.LATEST)
 //
-////    for (s <- list) println(s)
+//    val connection: Connection[Event] = fc
+//      .fetchConnection(
+//        "search",
+//        classOf[Event],
+//        Parameter.`with`("q", "back"),
+//        Parameter.`with`("type", "event"),
+//        Parameter.`with`("limit", "200"),
+//        Parameter.`with`("center", "40.6643%2C-73.9385"),
+//        Parameter.`with`("distance", "1000")
+//      )
 //
-//    val fc = new DefaultFacebookClient("EAACEdEose0cBAGDVOCGl7pjxbCvo2wFV8nsrG2kCsZCfJx5aw4hJjPKbYQEI9MkjlVDS94QlYZBOML9YAp2RTe7CyDmPv3oogekPRaQdr43bi4DNaZC5nqo8XTk3dBKvgSsB3f3kFHm83X3WD9ySGzfnNTVK8aTQikEq1bRdAZDZD", Version.LATEST)
-////    fc.fetchConnection("search", Event.class, Parameter.with("q", "Mark"), Parameter.with("type", "event"));
-//    val connection: Connection[Event] = fc.fetchConnection("search", classOf[Event], Parameter.`with`("q", "copyright"), Parameter.`with`("type", "event"))
+//    // start first
+//
 //    val events: util.List[Event] = connection.getData
-////    events.forEach(_ => {println("")})
-//    events.toList.foreach((s) => println(s))
 //
-////    for (event <- events) println(event)
-
+////    connection.iterator().toTraversable.foreach((events: util.List[Event]) => )
+//
+//    println(s"size in first = ${events.size()}")
+//
+//    events.toList
+//      .foreach((e: Event) => {
+////        println(e)
+////        if(e.getAttendingCount != null) {
+////          println("!!!")
+////        }
+//      })
+//
+//
+//    // end first
+//
+//    val it = connection.iterator()
+//    while(it.hasNext) {
+//      val batch = it.next()
+//      println(s"size=${batch.size()}")
+//    }
   }
 
 }
