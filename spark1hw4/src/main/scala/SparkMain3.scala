@@ -11,7 +11,7 @@ import com.restfb.{Connection, DefaultFacebookClient, Parameter, Version}
 import com.sun.xml.internal.fastinfoset.algorithm.BuiltInEncodingAlgorithm.WordListener
 import org.apache.spark.sql.functions.{array, collect_list, lit, udf}
 import org.apache.spark.sql.{DataFrameReader, Row, SQLContext, functions}
-import org.apache.spark.sql.hive.HiveContext
+//import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.sql.types._
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -175,7 +175,7 @@ object SparkMain3 {
       val result = ListBuffer[(DateCityTagKey, List[EventData])]()
 
             tuple._2.foreach((tag: String) => {
-              val fc = new DefaultFacebookClient("EAACEdEose0cBAPh8MSSoHYNQYb3i6oaVyzBvHhDFZAhQqvteMLZASZB6VAwCDdTXTyEpXzNXHHHCVfsmk5ZCaJqUea2uDSZBVrZAyMN7XZA8OWvtIybVvxeFULkZAA4KZAFljaXjsGCLdzQO9Do3bLBuODWEQsJfFBKsCisdppKRD1AZDZD", Version.LATEST)
+              val fc = new DefaultFacebookClient("EAACEdEose0cBAA6sL4FSFy8cNcGPqD5pzMPY9Ds4B1liKKehBgmOwKtf8wwFo4TswgY6711ZADO0TSutCqA4z2GshFwzMxADRLcwHBVz7uExgYZCHMqX4xRVOVQGIiaO0Q74RtGtWQSR5YICuCUgj4q5l1VZAZBCzVllHJZCbwgZDZD", Version.LATEST)
 
               val connection: Connection[Event] = fc
                 .fetchConnection(
@@ -229,7 +229,16 @@ object SparkMain3 {
         }
       })
       println(s"ts=${tokens.size}")
-      val map = tokens.groupBy((s: String) => s).mapValues(_.size)
+//      val map = tokens.groupBy((s: String) => s).mapValues(_.size)
+
+      val map = tokens.groupBy(word => word)
+        .mapValues(_.size)
+        .toSeq
+        .sortBy(tuple => tuple._2)
+        .reverse
+        .take(10)
+        .toMap
+
 //      tokens.toList.map((word: String) => (word, 1))
 //          .reduce((value: (String, Int), value0: (String, Int)) => (value._1, value._2 + value0._2))
       (attendee, map)
