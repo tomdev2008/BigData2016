@@ -23,24 +23,64 @@ object SparkMain4 {
   def main(args: Array[String]) {
     println("Start")
 
-    val map = List("q1", "q2", "q3", "q2", "q3", "q3")
-      .groupBy(word => word)
-      .mapValues(_.size)
-      .toSeq
-      .sortBy(tuple => tuple._2)
-      .reverse
-      .take(2)
-      .toMap
-
-    println(map)
-
-//    val conf = new SparkConf()
-//      .setAppName("HW1")
-//      .setMaster("local[*]")
+//    val map = List("q1", "q2", "q3", "q2", "q3", "q3")
+//      .groupBy(word => word)
+//      .mapValues(_.size)
+//      .toSeq
+//      .sortBy(tuple => tuple._2)
+//      .reverse
+//      .take(2)
+//      .toMap
 //
-//    val sc = new SparkContext(conf)
-//
-//    //this rdd could be loaded from external source
+//    println(map)
+
+
+
+    val conf = new SparkConf()
+      .setAppName("HW1")
+      .setMaster("local[*]")
+
+    val sc = new SparkContext(conf)
+
+    val map = sc.parallelize(List((1, "asd"), (3, "asdasd"), (2, "sdsdsdjj")))
+    val c = map.sortByKey(false)
+      .collect()
+
+
+    val an = sc.parallelize(List("qwe asd","zxc zxc", "qwe asd", "qwe asd", "zxc zxc", "dfg aasd"))
+
+    val counted = an //attendeeNames
+      .map(name => (name, 1))
+      .reduceByKey(_+_)
+
+    val c2 = counted.collect()
+
+    val sortedAttendee = counted
+      .map(item => item.swap)
+      .sortByKey(false)
+
+    val c3 = sortedAttendee.collect()
+//      .map(item => item.swap)
+
+    c3.foreach(println)
+
+    val c4 = sortedAttendee.map(tuple => tuple._2)
+    val c5 = c4.collect()
+
+    println("---")
+
+    println(c5(0))
+    println(c5(1))
+    println(c5(2))
+
+    println("---")
+
+    c4.foreach(println)
+
+    println("end")
+
+
+    //this rdd could be loaded from external source
 //    val rdd = sc.parallelize(List(
 //      ("q", List("q1", "q2", "q3", "q2", "q3", "q3")),
 //      ("w", List("w1", "w2", "w3", "w2", "w3", "w3"))

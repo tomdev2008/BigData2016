@@ -5,6 +5,8 @@ import java.time.format.DateTimeFormatter
 import java.util
 import java.util.Date
 
+import com.restfb.json.JsonObject
+
 import scala.collection.JavaConversions._
 import com.restfb.types.Event
 import com.restfb.{Connection, DefaultFacebookClient, Parameter, Version}
@@ -34,6 +36,8 @@ object SparkMain3 {
 
   def main(args: Array[String]) {
     println("Start")
+
+    val key = "EAACEdEose0cBALPsBncWTIU8bTMziIsxPZA0rdZAnHQwnP1nIIUZApNIIHrhO7lMbdJy6gGZBsEwRgRlyDp4JOROBLFuycDzqTUeK19i5i6kvElZBKA1jAHa6SfdSthR9AQc32yZCOz7ZADsx1iu7TIyFuVJiLEJVVjXZAFAMiZCIkwZDZD"
 
     val conf = new SparkConf()
       .setAppName("HW1")
@@ -136,7 +140,7 @@ object SparkMain3 {
 
     println("-------------->")
 
-    val result = sqlContext.sql(
+/*    val result = sqlContext.sql(
       "select s.timestamp, c.City, t.tags, c.Latitude, c.Longitude from stream s " +
         "join tags t on s.userTags = t.tagId " +
         "join city c on s.city = c.Id " //+
@@ -175,7 +179,7 @@ object SparkMain3 {
       val result = ListBuffer[(DateCityTagKey, List[EventData])]()
 
             tuple._2.foreach((tag: String) => {
-              val fc = new DefaultFacebookClient("EAACEdEose0cBAA6sL4FSFy8cNcGPqD5pzMPY9Ds4B1liKKehBgmOwKtf8wwFo4TswgY6711ZADO0TSutCqA4z2GshFwzMxADRLcwHBVz7uExgYZCHMqX4xRVOVQGIiaO0Q74RtGtWQSR5YICuCUgj4q5l1VZAZBCzVllHJZCbwgZDZD", Version.LATEST)
+              val fc = new DefaultFacebookClient(key, Version.LATEST)
 
               val connection: Connection[Event] = fc
                 .fetchConnection(
@@ -216,6 +220,8 @@ object SparkMain3 {
 //      println(tuple)
 //    })
 
+
+
     val tokenized = withEventsRdd.mapValues((events: List[EventData]) => {
       val tokens = ListBuffer[String]()
       var attendee = 0
@@ -231,25 +237,80 @@ object SparkMain3 {
       println(s"ts=${tokens.size}")
 //      val map = tokens.groupBy((s: String) => s).mapValues(_.size)
 
+
+
       val map = tokens.groupBy(word => word)
         .mapValues(_.size)
         .toSeq
         .sortBy(tuple => tuple._2)
         .reverse
         .take(10)
-        .toMap
+
 
 //      tokens.toList.map((word: String) => (word, 1))
 //          .reduce((value: (String, Int), value0: (String, Int)) => (value._1, value._2 + value0._2))
       (attendee, map)
     })
 
-    tokenized.foreach((tuple: (DateCityTagKey, (Int, Map[String, Int]))) => {
-      println("!")
-    })
+//    tokenized.foreach((tuple: (DateCityTagKey, (Int, Map[String, Int]))) => {
+//      println("!")
+//    })
+
+    val strings = tokenized
+      .map((tuple: (DateCityTagKey, (Int, Seq[(String, Int)]))) => {
+        val tokens = tuple._2._2.map((tuple: (String, Int)) => s"${tuple._1},${tuple._2}").mkString(",")
+        s"${tuple._1.tag}\t${tuple._1.dateCityKey.localDate}\t${tuple._1.dateCityKey.city}\t${tuple._2._1}\t${tokens}"
+      })
+
+    strings.foreach(println)
 
 //    println(tokenized.count())
 
+    val eventIds = withEventsRdd.flatMapValues((datas: List[EventData]) => {
+      datas.map((data: EventData) => data.eventId)
+    }).values
+
+
+    eventIds.foreach(println)
+
+
+    def load(eventId: String) : Stream[AnyRef] = {
+      try {
+        val fc = new DefaultFacebookClient(key, Version.LATEST)
+
+        val connection: Connection[JsonObject] = fc.fetchConnection(eventId + "/attending", classOf[JsonObject])
+
+        connection.iterator().toStream.flatMap((objects: util.List[JsonObject]) => {
+          objects.toList.map(_.get("name"))
+        })
+      } catch {
+        case e: Exception => {
+          println(s"error! wait! $eventId")
+          e.printStackTrace()
+          Thread.sleep(3000)
+          println(s"retry! $eventId")
+          load(eventId)
+        }
+      }
+    }
+
+    val attendeeNames = eventIds.flatMap((eventId: String) => {
+      println(s"Attendee call $eventId")
+      load(eventId)
+    })*/
+
+
+    val an = sc.parallelize(List("qwe asd", "qwe asd", "zxc zxc", "dfg aasd"))
+
+    val sortedAttendee = an //attendeeNames
+      .map(name => (name, 1))
+      .reduceByKey(_+_)
+      .sortBy((tuple: (AnyRef, Int)) => tuple._2, true)
+
+    sortedAttendee.map((tuple: (String, Int)) => tuple._1)
+      .foreach(println)
+
+    println("e")
 
   }
 
