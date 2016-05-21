@@ -75,7 +75,9 @@ object SparkMain4 {
 
     println("---")
 
-    c4.foreach(println)
+    c4.saveAsTextFile("file:///D:\\test")
+
+//    c4.foreach(println)
 
     println("end")
 

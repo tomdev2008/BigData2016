@@ -37,7 +37,7 @@ object SparkMain3 {
   def main(args: Array[String]) {
     println("Start")
 
-    val key = "EAACEdEose0cBALPsBncWTIU8bTMziIsxPZA0rdZAnHQwnP1nIIUZApNIIHrhO7lMbdJy6gGZBsEwRgRlyDp4JOROBLFuycDzqTUeK19i5i6kvElZBKA1jAHa6SfdSthR9AQc32yZCOz7ZADsx1iu7TIyFuVJiLEJVVjXZAFAMiZCIkwZDZD"
+    val key = "EAACEdEose0cBAEdGjyhMcZAjWg5xKYnaaeZCIJZAkIBUCRprB16DaVPCw2mSZBtodHRmZBX01xN0qHng4EZA7Lk3Ek1BMttXnPxz13uRuZCfnMEPvtizsDO5jfafCZAjXmAyi3vC1ziC43g8uboF16LPAGBRW7d4hVZB08jFPdewWhQZDZD"
 
     val conf = new SparkConf()
       .setAppName("HW1")
@@ -140,7 +140,7 @@ object SparkMain3 {
 
     println("-------------->")
 
-/*    val result = sqlContext.sql(
+    val result = sqlContext.sql(
       "select s.timestamp, c.City, t.tags, c.Latitude, c.Longitude from stream s " +
         "join tags t on s.userTags = t.tagId " +
         "join city c on s.city = c.Id " //+
@@ -297,18 +297,20 @@ object SparkMain3 {
     val attendeeNames = eventIds.flatMap((eventId: String) => {
       println(s"Attendee call $eventId")
       load(eventId)
-    })*/
+    })
 
 
-    val an = sc.parallelize(List("qwe asd", "qwe asd", "zxc zxc", "dfg aasd"))
+//    val an = sc.parallelize(List("qwe asd", "qwe asd", "zxc zxc", "dfg aasd"))
 
-    val sortedAttendee = an //attendeeNames
+    val sortedAttendee = attendeeNames
       .map(name => (name, 1))
       .reduceByKey(_+_)
-      .sortBy((tuple: (AnyRef, Int)) => tuple._2, true)
+      .sortBy(tuple => tuple._2, false)
 
-    sortedAttendee.map((tuple: (String, Int)) => tuple._1)
-      .foreach(println)
+    val result2 = sortedAttendee.map(tuple => tuple._1)
+      .collect()
+
+    //TODO save result2 to the file
 
     println("e")
 
