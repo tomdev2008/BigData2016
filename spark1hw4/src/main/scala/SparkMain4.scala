@@ -23,18 +23,6 @@ object SparkMain4 {
   def main(args: Array[String]) {
     println("Start")
 
-//    val map = List("q1", "q2", "q3", "q2", "q3", "q3")
-//      .groupBy(word => word)
-//      .mapValues(_.size)
-//      .toSeq
-//      .sortBy(tuple => tuple._2)
-//      .reverse
-//      .take(2)
-//      .toMap
-//
-//    println(map)
-
-
 
     val conf = new SparkConf()
       .setAppName("HW1")
@@ -42,71 +30,41 @@ object SparkMain4 {
 
     val sc = new SparkContext(conf)
 
-    val c20 = sc.parallelize(List("qwe", "asd", "qwe", "asd", "zxc"))
-      .distinct()
-      .collect()
+//    sc.
 
-    println()
-
-//    val map = sc.parallelize(List((1, "asd"), (3, "asdasd"), (2, "sdsdsdjj")))
-//    val c = map.sortByKey(false)
-//      .collect()
-//
-//
-//    val an = sc.parallelize(List("qwe asd","zxc zxc", "qwe asd", "qwe asd", "zxc zxc", "dfg aasd"))
-//
-//    val counted = an //attendeeNames
-//      .map(name => (name, 1))
-//      .reduceByKey(_+_)
-//
-//    val c2 = counted.collect()
-//
-//    val sortedAttendee = counted
-//      .map(item => item.swap)
-//      .sortByKey(false)
-//
-//    val c3 = sortedAttendee.collect()
-////      .map(item => item.swap)
-//
-//    c3.foreach(println)
-//
-//    val c4 = sortedAttendee.map(tuple => tuple._2)
-//    val c5 = c4.collect()
-//
-//    println("---")
-//
-//    println(c5(0))
-//    println(c5(1))
-//    println(c5(2))
-//
-//    println("---")
-//
-//    c4.saveAsTextFile("file:///D:\\test")
-
-//    c4.foreach(println)
-
-    println("end")
 
 
     //this rdd could be loaded from external source
     val rdd = sc.parallelize(List(
-      ("q", List("q1", "q2", "q3", "q2", "q3", "q3")),
-      ("w", List("w1", "w2", "w3", "w2", "w3", "w3"))
+      ("q", List("a1", "b2", "c3", "b2", "c3", "c3")),
+      ("w", List("a1", "b2", "c3", "b2", "c3", "c3"))
     ))
 
-    rdd.mapValues((strings: List[String]) => {
-      sc.parallelize(strings)
-        .map(word => (word, 1))
-        .reduceByKey(_+_)
-        .collect()
-      strings.groupBy(word => word)
-        .mapValues(_.size)
-        .toSeq
-        .sortBy(tuple => tuple._2)
-        .reverse
-        .take(2)
-        .toMap
-    }).foreach(println)
+    rdd.saveAsTextFile("file:///D:/ttt")
+
+    val c = rdd.flatMapValues((strings: List[String]) => strings)
+    .map((tuple: (String, String)) => (tuple, 1))
+    .reduceByKey(_+_)
+    .map((tuple: ((String, String), Int)) => (tuple._1._1, (tuple._1._2, tuple._2)))
+      .sortBy((tuple: (String, (String, Int))) => tuple._2._2, false)
+      .groupByKey()
+      .mapValues((tuples: Iterable[(String, Int)]) => tuples.take(2))
+    .collect()
+
+    print()
+//    rdd.mapValues((strings: List[String]) => {
+////      sc.parallelize(strings)
+////        .map(word => (word, 1))
+////        .reduceByKey(_+_)
+////        .collect()
+//      strings.groupBy(word => word)
+//        .mapValues(_.size)
+//        .toSeq
+//        .sortBy(tuple => tuple._2)
+//        .reverse
+//        .take(2)
+//        .toMap
+//    }).foreach(println)
 
 
 

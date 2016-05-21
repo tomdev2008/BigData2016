@@ -7,7 +7,7 @@ import java.util.Date
 
 import com.restfb.exception.FacebookOAuthException
 import com.restfb.json.JsonObject
-import com.restfb.types.Event
+import com.restfb.types.{Place, Event}
 import com.restfb.{Connection, DefaultFacebookClient, Parameter, Version}
 import org.apache.hadoop.mapreduce.jobhistory.Events
 import org.apache.spark.sql.functions.udf
@@ -25,98 +25,17 @@ import scala.collection.mutable.ListBuffer
  */
 object SparkMain5 {
 
-  //variables
-  val key = "EAACEdEose0cBAJ5JzZCYoW4fE3oeZB4xuDr1teU6dauZAoUIvwZCtHD4tVHYpIF1mfgYi2ZBsJ9eDJbnX2UKxgHScOVFC2esZC4ZC6ioNaDwddZCW09u3B2iF9C6LaPkITBrMTWAr4LN186MIENZCxbUKkLdLd3WJgIsoI812T2GpWwZDZD"
-
-  case class DateCityKey (localDate: LocalDate, city: String, latitude: Double, longitude: Double) extends Serializable
-
-  case class Value (tags: Array[String]) extends Serializable
-
-  case class EventData(eventId: String, description: String, attendingCount: Integer) extends Serializable
-
-  case class DateCityTagKey(dateCityKey: DateCityKey, tag: String) extends Serializable
-
-  def createCommonDFReader(sqlContext: SQLContext, excludeHeader: Boolean): DataFrameReader = {
-    val dataFrameReader = sqlContext.read
-      .format("com.databricks.spark.csv")
-      .option("delimiter", "\t")
-      .option("inferSchema", "true")
-    if (excludeHeader) dataFrameReader.option("header", "true")
-    dataFrameReader
-  }
-
-  def loadEventsByTagAndCity(tag: String, latitude: Double, longitude: Double): List[EventData] = {
-    try {
-      println(s"Loading Event tag=$tag latitude=$latitude longitude=$longitude")
-      val connection: Connection[Event] = new DefaultFacebookClient(key, Version.LATEST)
-        .fetchConnection(
-          "search",
-          classOf[Event],
-          Parameter.`with`("q", tag),
-          Parameter.`with`("type", "event"),
-          Parameter.`with`("limit", "200"),
-          Parameter.`with`("center", s"$latitude%2C$longitude"),
-          Parameter.`with`("distance", "1000"),
-          Parameter.`with`("fields", "id,description,attending_count")
-        )
-
-      //TODO refactor
-      val events = ListBuffer[EventData]()
-
-      val it = connection.iterator()
-      while(it.hasNext) {
-        val batch: util.List[Event] = it.next()
-        batch.toList.foreach((event: Event) => {
-          events += EventData(event.getId, event.getDescription, event.getAttendingCount)
-        })
-      }
-      events.toList
-    } catch {
-      case e: FacebookOAuthException => {
-        println(s"event loading error! wait! $tag")
-        e.printStackTrace()
-        Thread.sleep(5*60*1000)
-        println(s"retry event! $tag")
-        loadEventsByTagAndCity(tag, latitude, longitude)
-      }
-    }
-  }
-
-  def getAmountAndTokensTuple(event: EventData): (Int, List[String]) = {
-    var tokens = List[String]()
-    var attendee = 0
-    val p = "\\b[^\\d\\W]+\\b".r
-    if(event.description != null) {
-      tokens = p.findAllIn(event.description).toList
-    }
-    if(event.attendingCount != null) {
-      attendee += event.attendingCount
-    }
-    (attendee, tokens)
-  }
-
-  def loadAttendee(eventId: String) : Stream[AnyRef] = {
-    try {
-      println(s"Loading Attendee by event $eventId ${Thread.currentThread().getName}")
-      val fc = new DefaultFacebookClient(key, Version.LATEST)
-      val connection: Connection[JsonObject] = fc.fetchConnection(eventId + "/attending", classOf[JsonObject])
-      connection.iterator().toStream.flatMap((objects: util.List[JsonObject]) => {
-        objects.toList.map(_.get("name"))
-      })
-    } catch {
-      case e: FacebookOAuthException => {
-        println(s"error! wait! $eventId")
-        e.printStackTrace()
-        Thread.sleep(5*60*1000)
-        println(s"retry! $eventId")
-        loadAttendee(eventId)
-      }
-    }
-  }
+  var key: String = _
+  var input: String = _
+  var output: String = _
 
   def main(args: Array[String]) {
     println("Start")
+    if(args.length != 3) throw new IllegalArgumentException("Should be three parameters: face book key, input and output derectories")
 
+    key = args(0)
+    input = args(1)
+    output = args(2)
 
     val conf = new SparkConf()
       .setAppName("HW1")
@@ -135,8 +54,7 @@ object SparkMain5 {
     // - Density
     // - Latitude
     // - Longitude
-    val cityPath = getClass.getResource("/city.us.txt").getPath()
-    val city = createCommonDFReader(sqlContext, true).load(cityPath)
+    val city = createCommonDFReader(sqlContext, true).load(input + "/city.us.txt")
     city.registerTempTable("city")
     city.printSchema()
 
@@ -148,10 +66,9 @@ object SparkMain5 {
       StructField("f3", StringType, true),
       StructField("url", StringType, true)))
 
-    val tagsPath = getClass.getResource("/tags.txt").getPath()
     val tags = createCommonDFReader(sqlContext, false)
       .schema(keywordsSchema)
-      .load(tagsPath)
+      .load(input + "/tags.txt")
     tags.registerTempTable("tags")
     tags.printSchema()
 
@@ -179,10 +96,9 @@ object SparkMain5 {
       StructField("userTags", StringType, true),
       StructField("streamId", IntegerType, true)))
 
-    val streamPath = getClass.getResource("/stream.txt").getPath()
     val stream = createCommonDFReader(sqlContext, false)
       .schema(streamSchema)
-      .load(streamPath)
+      .load(input + "/stream.txt")
     stream.registerTempTable("stream")
     stream.printSchema()
 
@@ -206,14 +122,10 @@ object SparkMain5 {
 
     val groupedDisclosedRdd = grouperRdd.flatMapValues((strings: Set[String]) => strings)
 
-    case class DateCityTagAmountKey(dateCityTagKey: DateCityTagKey, amount: Int) extends Serializable
-
     val grouperEventsRdd = groupedDisclosedRdd.map((tuple: (DateCityKey, String)) => {
       val events = loadEventsByTagAndCity(tuple._2, tuple._1.latitude, tuple._1.longitude)
       (DateCityTagKey(tuple._1, tuple._2), events)
     })
-
-    //TODO add union with places
 
     grouperEventsRdd.persist(StorageLevel.DISK_ONLY)
 
@@ -227,18 +139,25 @@ object SparkMain5 {
       .reduceByKey((tuple: (Int, List[String]), tuple0: (Int, List[String])) => (tuple._1 + tuple0._1, tuple._2 ++ tuple0._2))
       // add total attendee amount to key
       .map((tuple: (DateCityTagKey, (Int, List[String]))) => (DateCityTagAmountKey(tuple._1, tuple._2._1), tuple._2._2))
-//      // make one word in one row
+      // make one word in one row
       .flatMapValues((descriptions: List[String]) => descriptions)
-//      //start word counting
+      //start word counting
       .map((tuple: (DateCityTagAmountKey, String)) => (tuple, 1))
-//      //end word counting
+      //end word counting
       .reduceByKey(_+_)
-//      // prepare tokens map as value
+      // prepare tokens map as value
       .map((tuple: ((DateCityTagAmountKey, String), Int)) => (tuple._1._1, (tuple._1._2, tuple._2)))
-//      // make tokens map
+      // make tokens map
+      .sortBy((tuple: (DateCityTagAmountKey, (String, Int))) => tuple._2._2, false)
       .groupByKey()
+      .mapValues((tuples: Iterable[(String, Int)]) => tuples.take(10))
 
-    val r1 = groupedTokenMapRdd.collect() //TODO add saving to file and sort and limit
+    groupedTokenMapRdd
+    .map((tuple: (DateCityTagAmountKey, Iterable[(String, Int)])) => {
+      val tokens = tuple._2.map((tuple: (String, Int)) => s"${tuple._1},${tuple._2}").mkString(",")
+      s"${tuple._1.dateCityTagKey.tag}\t${tuple._1.dateCityTagKey.dateCityKey.localDate}\t${tuple._1.dateCityTagKey.dateCityKey.city}\t${tuple._1.amount}\t${tokens}"
+    })
+    .saveAsTextFile(output + "/words")
 
     //SECOND BRANCH
     val uniqueEventIdsRdd = grouperEventsRdd
@@ -255,12 +174,92 @@ object SparkMain5 {
       .sortBy(tuple => tuple._2, false)
       .map(tuple => tuple._1)
 
-    val r2 = sortedAttendee.collect()
+    sortedAttendee.saveAsTextFile(output + "/names")
 
     println("end")
   }
 
+  case class DateCityKey (localDate: LocalDate, city: String, latitude: Double, longitude: Double) extends Serializable
 
+  case class EventData(eventId: String, description: String, attendingCount: Integer) extends Serializable
+
+  case class DateCityTagKey(dateCityKey: DateCityKey, tag: String) extends Serializable
+
+  case class DateCityTagAmountKey(dateCityTagKey: DateCityTagKey, amount: Int = 0) extends Serializable
+
+  def createCommonDFReader(sqlContext: SQLContext, excludeHeader: Boolean): DataFrameReader = {
+    val dataFrameReader = sqlContext.read
+      .format("com.databricks.spark.csv")
+      .option("delimiter", "\t")
+      .option("inferSchema", "true")
+    if (excludeHeader) dataFrameReader.option("header", "true")
+    dataFrameReader
+  }
+
+  def loadEventsByTagAndCity(tag: String, latitude: Double, longitude: Double): List[EventData] = {
+    try {
+      println(s"Loading Event tag=$tag latitude=$latitude longitude=$longitude")
+      val connection: Connection[Event] = new DefaultFacebookClient(key, Version.LATEST)
+        .fetchConnection(
+          "search",
+          classOf[Event],
+          Parameter.`with`("q", tag),
+          Parameter.`with`("type", "event"),
+          Parameter.`with`("limit", "200"),
+          Parameter.`with`("center", s"$latitude%2C$longitude"),
+          Parameter.`with`("distance", "1000"),
+          Parameter.`with`("fields", "id,description,attending_count")
+        )
+
+      connection
+        .toStream.flatMap((events: util.List[Event]) => events)
+        .map((event: Event) => EventData(event.getId, event.getDescription, event.getAttendingCount))
+        .toList
+    } catch {
+      case e: FacebookOAuthException => {
+        println(s"event loading error! wait! $tag")
+        e.printStackTrace()
+        Thread.sleep(5*60*1000)
+        println(s"retry event! $tag")
+        loadEventsByTagAndCity(tag, latitude, longitude)
+      }
+    }
+  }
+
+  def getAmountAndTokensTuple(event: EventData): (Int, List[String]) = {
+    var tokens = List[String]()
+    var attendee = 0
+    val p = "\\b[^\\d\\W]+\\b".r
+    if(event.description != null) {
+      tokens = p.findAllIn(event.description).toList
+    }
+    if(event.attendingCount != null) {
+      attendee += event.attendingCount
+    }
+    (attendee, tokens)
+  }
+
+  def loadAttendee(eventId: String) : List[String] = {
+    try {
+      println(s"Loading Attendee by event $eventId ${Thread.currentThread().getName}")
+      val fc = new DefaultFacebookClient(key, Version.LATEST)
+      val connection: Connection[JsonObject] = fc.fetchConnection(eventId + "/attending", classOf[JsonObject])
+      connection.iterator()
+        .toStream
+        .flatMap((objects: util.List[JsonObject]) => {
+          objects.toList.map((place: JsonObject) => place.getString("name"))
+        })
+        .toList
+    } catch {
+      case e: FacebookOAuthException => {
+        println(s"error! wait! $eventId")
+        e.printStackTrace()
+        Thread.sleep(5*60*1000)
+        println(s"retry! $eventId")
+        loadAttendee(eventId)
+      }
+    }
+  }
 
 }
 
