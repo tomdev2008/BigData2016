@@ -17,7 +17,7 @@ object SparkStreamingMain {
 
   def main(args: Array[String]) {
 
-    println("Start")
+    println("Start ")
 
     val conf = new SparkConf()
       .setAppName("HW1")
