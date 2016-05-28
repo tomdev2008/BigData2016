@@ -20,6 +20,12 @@ import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable.ListBuffer
 
+import org.apache.spark.sql.DatasetHolder._
+
+import org.apache.spark.sql._
+
+//import org.apache.spark.sql.sqlContext.implicits._
+
 /**
  * Created by Vitaliy on 5/14/2016.
  */
@@ -43,7 +49,21 @@ object SparkMain5 {
 
     val sc = new SparkContext(conf)
 
-    val sqlContext = new SQLContext(sc)
+    val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+    import sqlContext.implicits._
+
+    case class Foobar(foo: String, bar: Integer) extends Serializable
+
+//    val foobarRdd = sc.parallelize(Seq(Foobar("qwe", 23)))
+    val foobarRdd = sc.parallelize(Seq("qwe"))
+
+    sqlContext.createDataset(foobarRdd)
+
+//    val foobarDf = foobarRdd.toDF
+//    foobarDf.limit(1).show
+
+
+    sc.parallelize(Seq(("", ""))).toDS
 
     // schema:
     // - Id

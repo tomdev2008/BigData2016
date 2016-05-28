@@ -1,0 +1,8 @@
+0	unknown
+1	site-impression
+11	site-click
+111	site-search
+112	site-qk-search
+113	site-full-search
+1111	site-basket
+11111	site-paid
